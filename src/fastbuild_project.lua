@@ -104,7 +104,6 @@
             m.clCompilePreprocessorDefinitions,
             m.clCompileAdditionalIncludeDirectories,
             m.exceptionHandling,
-            m.linkIncremental,
             m.runtimeTypeInfo,
             m.programDatabaseFilename,
             m.additionalCompileOptions,
@@ -119,9 +118,12 @@
         else 
             return { 
                 m.generateDebugInformation,
+                m.linkIncremental,
                 m.additionalDependencies,
                 m.additionalLibraryDirectories,
-                m.delayLoadDlls
+                m.delayLoadDlls,
+                m.entryPointSymbol
+                -- TODO?: /LARGEADDRESSAWARE /OPT:NOREF /OPT:NOICF /ERRORREPORT:PROMPT 
             }
         end
     end
@@ -237,7 +239,18 @@
     -- Enables Delayed Dll Loading 
     function m.delayLoadDlls(cfg)
         if cfg.delayloaddlls then
+            local mapped = { }
             for _, dll in pairs(cfg.delayloaddlls) do 
+                mapped[dll] = true
+            end
+
+            local sorted = { }
+            for dll, _ in pairs(mapped) do
+                table.insert(sorted, dll)
+            end
+
+            table.sort(sorted, function(e1, e2) return e1 < e2 end)
+            for _, dll in pairs(sorted) do 
                 m.element(('/DELAYLOAD:"%s"'):format(dll), "Load DLL on first function call.")
             end
         end
@@ -886,6 +899,7 @@
 
             end
 
+
             -- In each configuration 
             for cfg in project.eachconfig(prj) do
                 local proc_files = processed_files[cfg.buildcfg]
@@ -1364,7 +1378,7 @@
         if fcfg.buildcommands and fcfg.buildcommands[1] and fcfg.buildcommands[1].message then
             local cmd = fcfg.buildcommands[1]
             local exec = path.getbasename(cmd.executable)
-            local rel = fastbuild.path(fcfg, fcfg.abspath)
+            local rel = fastbuild.path(prj, fcfg.abspath)
 
             local file_name = path.getbasename(rel)
             local exec_target = ("%s_%s_%s_%s"):format(prj.name, fastbuild.projectPlatform(cfg), exec, file_name)
@@ -1372,8 +1386,8 @@
             p.x("Exec( '%s' )", exec_target)
             p.push("{")
             p.x(".ExecExecutable = '%s'", cmd.executable)
-            p.x(".ExecInput = '%s'", fastbuild.path(fcfg, fcfg.abspath))
-            p.x(".ExecOutput = '%s'", fastbuild.path(fcfg, cmd.output))
+            p.x(".ExecInput = '%s'", fastbuild.path(prj, fcfg.abspath))
+            p.x(".ExecOutput = '%s'", fastbuild.path(prj, cmd.output))
             p.x(".ExecArguments = ''")
             for _, arg in pairs(cmd.arguments) do 
                 p.x(".ExecArguments + ' %s'", arg)
@@ -1443,5 +1457,11 @@
     function m.generatedFile(fcfg)
         if fcfg and fcfg.generated then 
             m.element("", "Generated file flag")
+        end
+    end
+
+    function m.entryPointSymbol(cfg)
+        if cfg.entrypoint then
+            m.element(('/ENTRY:"%s"'):format(cfg.entrypoint ), nil, cfg.entrypoint)
         end
     end

@@ -489,6 +489,10 @@
         emitLibs = function(prj, group, mapped_files)
             local pch_files = group.pch_files
             
+            local function addAsCompileDependency(data)
+                p.x(".%s_%s_compile_dependencies + { '%s' }", data.prj.name, fastbuild.projectPlatform(data.cfg), data.name)
+            end
+
             local function hasFlag_NoPCH(data)
                 return data.files and #data.files > 0 and data.files[1].flags.NoPCH 
             end
@@ -533,6 +537,14 @@
             local spec_files = group.spec_files
             local gen_files = group.gen_files
 
+            local pch_compiler_object_list = {
+                m.objectListUsing("config_{prj}_{platform}"),
+                m.objectListPreBuildDependency(".{prj}_{platform}_compile_dependencies", true),
+                m.objectListCompilerOutputPath,
+                m.objectListCompilerInputFilesRoot,
+                addPCHSupport
+            }
+
             local custom_compiler_object_list = {
                 m.objectListUsing("config_{prj}_{platform}"),
                 m.objectListPreBuildDependency(".{prj}_{platform}_compile_dependencies", true),
@@ -549,11 +561,19 @@
                 m.objectListPreBuildDependency(".{prj}_{platform}_prebuild_deps"),
                 m.objectListCompilerOutputPath,
                 m.objectListCompilerInputFilesRoot,
-                addPCHSupport
+                addPCHOptions
             }
 
             for cfg in project.eachconfig(prj) do
+                local lib
                 local libs = { }
+
+                if pch_files[cfg] and #pch_files[cfg] == 1 then 
+                    lib = m.writeObjectList(prj, cfg, { }, "pch", pch_compiler_object_list, { addAsCompileDependency })
+                    if lib then 
+                        table.insert(libs, lib)
+                    end
+                end
 
                 local num = 0
                 for content, files in pairs(mapped_files.custom[cfg]) do 
@@ -571,7 +591,7 @@
                 if mapped_files.default then
                     lib = m.writeObjectList(prj, cfg, {}, "default", default_compiler_object_list)
                     if lib then 
-                        table.insert(libs, 1, lib)
+                        table.insert(libs, lib)
                     end
                 end
 
@@ -1380,8 +1400,7 @@
             local exec = path.getbasename(cmd.executable)
             local rel = fastbuild.path(prj, fcfg.abspath)
 
-            local file_name = path.getbasename(rel)
-            local exec_target = ("%s_%s_%s_%s"):format(prj.name, fastbuild.projectPlatform(cfg), exec, file_name)
+            local exec_target = ("%s_%s_%s_%s"):format(prj.name, fastbuild.projectPlatform(cfg), exec, fcfg.basename)
 
             p.x("Exec( '%s' )", exec_target)
             p.push("{")
@@ -1461,7 +1480,7 @@
     end
 
     function m.entryPointSymbol(cfg)
-        if cfg.entrypoint then
-            m.element(('/ENTRY:"%s"'):format(cfg.entrypoint ), nil, cfg.entrypoint)
+        if cfg.entrypoint and #cfg.entrypoint > 0 then -- #todo maybe check if this a console or windowed app? 
+            m.element(('/ENTRY:"%s"'):format(cfg.entrypoint), "Entry point for the application to be used: %s", cfg.entrypoint)
         end
     end

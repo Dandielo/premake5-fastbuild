@@ -33,13 +33,11 @@ newoption {
         description = "Generate FASTBuild project files",
 
         -- The capabilities of this action
-
         valid_kinds     = { "ConsoleApp", "WindowedApp", "StaticLib", "SharedLib", "Makefile", "None", "Utility" },
         valid_languages = { "C", "C++" },
         valid_tools     = { },
 
         -- Workspace and project generation logic
-
         onWorkspace = function(wks)
             if _OPTIONS['fb-vstudio'] then 
                 wks.vstudio_enabled = true
@@ -48,6 +46,7 @@ newoption {
             wks.fbuild = { }
             fastbuild.generateSolution(wks)
         end,
+
         onProject = function(prj)
             if _OPTIONS['fb-vstudio'] then 
                 prj.vstudio_enabled = true
@@ -56,23 +55,22 @@ newoption {
             prj.fbuild = { }
             fastbuild.generateProject(prj)
         end,
+
         onRule = function(rule)
             fastbuild.generateRule(rule)
         end,
 
         onCleanWorkspace = function(wks)
-            -- p.fastbuild.cleanSolution(wks)
-        end,
-        onCleanProject = function(prj)
-            -- p.fastbuild.cleanProject(prj)
-        end,
-        onCleanCompiler = function(cl)
-            -- p.fastbuild.cleanProject(prj)
-        end,
-        onCleanTarget = function(prj)
-            -- p.fastbuild.cleanTarget(prj)
         end,
 
-        -- pathVars = vstudio.vs2010.pathVars,
+        onCleanProject = function(prj)
+        end,
+
+        onCleanCompiler = function(cl)
+        end,
+
+        onCleanTarget = function(prj)
+        end,
+
     }
     

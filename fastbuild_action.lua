@@ -46,7 +46,7 @@ newoption {
             end
 
             wks.fbuild = { }
-            p.fastbuild.generateSolution(wks)
+            fastbuild.generateSolution(wks)
         end,
         onProject = function(prj)
             if _OPTIONS['fb-vstudio'] then 
@@ -54,10 +54,10 @@ newoption {
             end
 
             prj.fbuild = { }
-            p.fastbuild.generateProject(prj)
+            fastbuild.generateProject(prj)
         end,
         onRule = function(rule)
-            p.fastbuild.generateRule(rule)
+            fastbuild.generateRule(rule)
         end,
 
         onCleanWorkspace = function(wks)

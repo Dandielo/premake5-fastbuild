@@ -1,5 +1,7 @@
 return {
     "_preload.lua",
+    "fastbuild.lua",
+    "fastbuild_action.lua",
     "fastbuild_utils.lua",
     "fastbuild_platforms.lua",
     "fastbuild_toolset.lua",

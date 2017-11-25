@@ -5,7 +5,8 @@ A premake5 module for generation of fastbuild projects.
 This module is not stable, and is under heavy development. You can try to use it but I don't guarantee any success at this moment. 
 
 ## Installation 
-The installation should be quite easy if you know lua a bit, I will hoverer provide the premake5 way.
+The installation should be quite easy if you know premake5 and lua.
+You can also follow the steps below:
 
 * Create a 'modules' directory in your main premake5.lua location.
 * Clone this repository in the 'modules' directory under the 'fastbuild' location. ``cd modules && git clone https://github.com/Dandielo/premake5-fastbuild.git fastbuild``

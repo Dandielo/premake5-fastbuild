@@ -2,14 +2,22 @@
 A premake5 module for generation of fastbuild projects. 
 
 ## Disclaimer
-This module is not stable, and is under heavy development. You can try to use it but I don't guarantee any success atm. 
+This module is not stable, and is under heavy development. You can try to use it but I don't guarantee any success at this moment. 
 
-## How to use it
-To make use of it, copy all files into a directory and require all files from the premake5-system.lua script file. 
+## Installation 
+The installation should be quite easy if you know lua a bit, I will hoverer provide the premake5 way.
 
-It should work on Windows machines with the vs2017 toolset installed (v141). 
+* Create a 'modules' directory in your main premake5.lua location.
+* Clone this repository in the 'modules' directory under the 'fastbuild' location. ``cd modules && git clone https://github.com/Dandielo/premake5-fastbuild.git fastbuild``
+* Add in your main premake5.lua file the following line ``require "fastbuild"``
 
-You can make use of the `fb-vstudio` command line argument to generate additional VCXProject and VCSolution function calls and generate VisualStudio projects with fastbuild support. 
+### Remarks
+So far this module works only on Windows machines with Visual Studio Community or Profesional installed.
+
+### Visual Studio projects
+You can generate FastBuild targets which can be used to generate a Visual Studio soluton which uses FastBuild instead of the default compiler.
+
+To enable this feature you need to use ``--fb-vstudio`` command line argument when generating fastbuild projects with premake5.
 
 ## Contribute 
 Any help is welcome!

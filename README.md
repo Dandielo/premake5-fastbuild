@@ -15,10 +15,14 @@ You can also follow the steps below:
 ### Remarks
 So far this module works only on Windows machines with Visual Studio Community or Profesional installed.
 
-### Visual Studio projects
-You can generate FastBuild targets which can be used to generate a Visual Studio soluton which uses FastBuild instead of the default compiler.
+### Command line options 
+All additional premake5 command line options available with this module. 
 
-To enable this feature you need to use ``--fb-vstudio`` command line argument when generating fastbuild projects with premake5.
+#### --fb-vstudio 
+Whith this option you can generate FastBuild targets which can be used to generate a Visual Studio soluton which uses FastBuild instead of the default compiler.
+
+#### --fb-cache-path=PATH
+Sets the .CachePath entry in the Settings section in the fastbuild {workspace}.bff file. This can be used instead of setting the FASTBUILD_CACHE_PATH enviroment variable. 
 
 ## Contribute 
 Any help is welcome!

@@ -23,7 +23,7 @@ newoption {
 
 newoption {
     trigger = "fb-cache-path",
-    description = "Sets the cache path in the .Settings struct which will override the ENV variable (if set)"
+    description = "Sets the cache path in the Settings section which will override the ENV variable (if set)"
 }
 
 ---

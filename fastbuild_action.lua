@@ -21,6 +21,11 @@ newoption {
     description = "Adds tools projects to the solution"
 }
 
+newoption {
+    trigger = "fb-cache-path",
+    description = "Sets the cache path in the .Settings struct which will override the ENV variable (if set)"
+}
+
 ---
 -- Define the FASTBuild export action.
 ---

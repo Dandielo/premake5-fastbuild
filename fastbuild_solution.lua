@@ -32,6 +32,7 @@
     m.elements.workspace = function(wks) 
         return { 
             m.header,
+            m.settings,
             m.toolsets,
             m.platforms,
             m.configurations,
@@ -52,6 +53,20 @@
 
     function m.header(wks) 
         f.section("FASTBuild Solution: %s", wks.name)
+    end
+
+
+---
+-- Write settings info the solution file 
+---
+    function m.settings(wks)
+        f.section("Settings")
+        p.push("Settings {")
+        local cache_path = _OPTIONS["fb-cache-path"]
+        if cache_path and #cache_path > 0 then 
+            p.x(".CachePath = '%s'", path.translate(cache_path))
+        end
+        p.pop("}")
     end
 
 --

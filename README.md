@@ -15,6 +15,8 @@ You can also follow the steps below:
 ### Remarks
 So far this module works only on Windows machines with Visual Studio Community or Profesional installed.
 
+Additionally you need to make sure that you got the following components installed: ``Windows Universal CRT SDK`` and ``Windows 8.1 SDK`` (for windows header files)
+
 ### Command line options 
 All additional premake5 command line options available with this module. 
 

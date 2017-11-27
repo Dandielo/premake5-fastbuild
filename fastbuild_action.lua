@@ -16,6 +16,12 @@ p.api.register {
     kind = "string"
 }
 
+p.api.register { 
+    name = "fbunitymaxfiles",
+    scope = "project",
+    kind = "number"
+}
+
 newoption { 
     trigger     = "fb-vstudio",
     description = "Adds tools projects to the solution"
@@ -25,6 +31,14 @@ newoption {
     trigger = "fb-cache-path",
     description = "Sets the cache path in the Settings section which will override the ENV variable (if set)"
 }
+
+newoption {
+    trigger = "fb-unity-builds",
+    description = "Creates unity function calls and supplies the unity blobs to object lists instead of all files."
+}
+
+p.api.addAllowed("flags", "FBUnityBuild")
+p.api.addAllowed("flags", "FBUnityBuildDisabled")
 
 ---
 -- Define the FASTBuild export action.

@@ -69,6 +69,8 @@
     end
     
     function m.generate(prj)
+        prj.unity_builds = _OPTIONS['fb-unity-builds'] ~= nil and prj.flags.FBUnityBuild
+
         local has = hasToolchain(prj) 
         if has then
             p.callArray(m.elements.project, prj)
@@ -349,7 +351,7 @@
     end
 
     function m.precompiledHeader(cfg)
-        prjcfg, filecfg = p.config.normalize(cfg)
+        local prjcfg, filecfg = p.config.normalize(cfg)
         if filecfg then
 
             if prjcfg.pchsource and filecfg.flags.NoPCH then
@@ -359,6 +361,15 @@
 
             if prjcfg.pchsource == filecfg.abspath and not prjcfg.flags.NoPCH then
                 filecfg.pchsource = true
+            end
+        end
+    end
+
+    function m.unityBuildDisabled(cfg)
+        local prjcfg, filecfg = p.config.normalize(cfg)
+        if filecfg then
+            if filecfg.flags.FBUnityBuildDisabled then 
+                m.element("", "UnityBuild disabled")
             end
         end
     end
@@ -456,6 +467,23 @@
 -- Compile group
 ---
 
+    assert(not m.elements.compile)
+
+    m.elements.compile = function(prj, cfg, files)
+        if prj.unity_builds then
+            return { 
+                -- m.emitUnityFunction
+                files and m.emitUnitySpecificFiles or m.emitUnityUsingDefaultFiles,
+                m.emitUnityOutputPath,
+                m.emitUnityPCHFile,
+                m.emitUnityCompileDependency,
+            }
+        else
+            return { 
+            }
+        end
+    end
+
     m.categories.Compile = {
         name = "Compile",
         extensions = { ".cc", ".cpp", ".cxx", ".c", ".s", ".m", ".mm" },
@@ -469,7 +497,8 @@
                     return {
                         m.clCompilePreprocessorDefinitions,
                         m.generatedFile,
-                        m.precompiledHeader
+                        m.precompiledHeader,
+                        m.unityBuildDisabled
                     }
                 else 
                     return { 
@@ -477,7 +506,7 @@
                 end
             end
 
-            return m.emitFiles(prj, group, "Compile", { }, fileCfgFunc, function(cfg, fcfg)
+            return m.emitFiles(prj, group, "default", { }, fileCfgFunc, function(cfg, fcfg)
                 if fcfg then 
                     return not fcfg.flags.ExcludeFromBuild
                 else 
@@ -556,7 +585,7 @@
 
             local default_compiler_object_list = {
                 m.objectListUsing("config_{prj}_{platform}"),
-                m.objectListUsing("Compile_{prj}_files"),
+                m.objectListUsing("default_{prj}_files"),
                 m.objectListPreBuildDependency(".{prj}_{platform}_compile_dependencies", true),
                 m.objectListPreBuildDependency(".{prj}_{platform}_prebuild_deps"),
                 m.objectListCompilerOutputPath,
@@ -589,7 +618,18 @@
                 end
 
                 if mapped_files.default then
-                    lib = m.writeObjectList(prj, cfg, {}, "default", default_compiler_object_list)
+                    if prj.unity_builds then 
+                        local unity = m.emitUnityFunction(prj, cfg, "default", m.elements.compile)
+                        lib = m.emitObjectList_2(prj, cfg, "default", { 
+                            m.emitObjectList2UsingConfig,
+                            m.emitObjectList2Dependency,
+                            m.emitObjectList2CompilerInputUnity(unity),
+                            m.emitObjectList2CompilerOutputPath,
+                            function(prj, cfg) addPCHOptions({ prj = prj, cfg = cfg }) end
+                        })
+                    else
+                        lib = m.writeObjectList(prj, cfg, {}, "default", default_compiler_object_list)
+                    end
                     if lib then 
                         table.insert(libs, lib)
                     end
@@ -1010,6 +1050,7 @@
         if files and #files > 0 then
 
             m.emitStruct(("%s_%s_files"):format(tag, prj.name), { emitInnerStruct }, nil, files)
+            prj.default_files = files
 
         end
 
@@ -1112,6 +1153,82 @@
         m.emitList("CompilerInputFiles", { m.emitListItems }, nil, data.files, function(file)
             return fastbuild.path(prj, file.abspath)
         end)
+    end
+
+---------------------------------------------------------------------------
+--
+-- Handlers for emiting object list calls
+--
+---------------------------------------------------------------------------
+    
+    function m.emitObjectList_2(prj, cfg, postfix, inner, after, ...)
+        local platform = fastbuild.projectPlatform(cfg)
+        local name = fastbuild.targetName(cfg, "objects", postfix)
+
+        m.emitFunction("ObjectList", name, inner, after, prj, cfg, ...)
+        return name
+    end
+
+    function m.emitObjectList2Dependency(prj, cfg, files)
+        p.x(".PreBuildDependencies = .%s", fastbuild.targetName(cfg, nil, "compile_dependencies"))
+        if not files then 
+            p.x(".PreBuildDependencies + .%s", fastbuild.targetName(cfg, nil, "prebuild_deps"))
+        end
+    end
+
+    function m.emitObjectList2UsingConfig(prj, cfg)
+        m.emitUsing(fastbuild.targetName(cfg, "config"))
+    end
+
+    function m.emitObjectList2CompilerInputUnity(unity)
+        return function()
+            p.x(".CompilerInputUnity = '%s'", unity)
+        end
+    end
+
+    function m.emitObjectList2CompilerOutputPath(prj, cfg)
+        p.x(".CompilerOutputPath = '%s'", fastbuild.path(prj, cfg.objdir))
+    end
+
+---------------------------------------------------------------------------
+--
+-- Handlers for emiting unity calls
+--
+---------------------------------------------------------------------------
+
+    function m.emitUnityFunction(prj, cfg, postfix, inner, after, ...)
+        local platform = fastbuild.projectPlatform(cfg)
+        local name = fastbuild.targetName(cfg, "unity", postfix)
+
+        m.emitFunction("Unity", name, inner, after, prj, cfg, ...)
+        return name
+    end
+
+    function m.emitUnityUsingDefaultFiles(prj, cfg)
+        m.emitUsing("default_" .. prj.name .. "_files")
+        p.x(".UnityNumFiles = %s", tostring(math.floor(#prj.default_files / 45 + 1))) 
+        p.x(".UnityInputFiles = %s", ".CompilerInputFiles")
+    end
+
+    function m.emitUnitySpecificFiles(prj, cfg, files)
+        p.x(".UnityNumFiles = %s", tostring(math.floor(#files / 40 + 1)))
+        m.emitList("UnityInputFiles", { m.emitListItems }, nil, files, function(file)
+            return fastbuild.path(prj, file.abspath)
+        end)
+    end
+
+    function m.emitUnityCompileDependency(prj, cfg)
+        p.x(".PreBuildDependencies = .%s", fastbuild.targetName(cfg, nil, "compile_dependencies"))
+    end
+
+    function m.emitUnityOutputPath(prj, cfg)
+        p.x(".UnityOutputPath = '%s\\fb_unity'", fastbuild.path(cfg, cfg.objdir))
+    end
+
+    function m.emitUnityPCHFile(prj, cfg)
+        if cfg.pchheader and not cfg.flags.NoPCH then 
+            p.x(".UnityPCH = '%s'", cfg.pchheader)
+        end
     end
 
 ---------------------------------------------------------------------------

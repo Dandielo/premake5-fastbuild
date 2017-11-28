@@ -64,6 +64,11 @@
         return result
     end
 
+    local function getWindowsSDKDefaultVersion()
+        local reg_arch = iif(os.is64bit(), "\\Wow6432Node\\", "\\")
+        return os.getWindowsRegistry("HKLM:SOFTWARE" .. reg_arch .."Microsoft\\Microsoft SDKs\\Windows\\v10.0\\ProductVersion")
+    end
+
     local function getVisualStudioDefaultVersion(base_path, type)
         local version
         f = io.open(base_path .. "\\VC\\Auxiliary\\Build\\Microsoft.VC" .. type .. "Version.default.txt")
@@ -72,6 +77,21 @@
             f:close()
         end
         return version
+    end
+
+    local function getWindowsSDKBaseDirectories(version)
+        local major = tonumber(version:gmatch("%d+")())
+        if major <= 8 then 
+            return { 
+                include = path.translate("C:/Program Files (x86)/Windows Kits/" .. version .. "/Include"),
+                lib = path.translate("C:/Program Files (x86)/Windows Kits/" .. version .. "/Lib/winv6.3"),
+            }
+        else 
+            return { 
+                include = path.translate("C:/Program Files (x86)/Windows Kits/" .. major .. "/Include/" .. version),
+                lib = path.translate("C:/Program Files (x86)/Windows Kits/" .. major .. "/Lib/" .. version),
+            }
+        end
     end
 
     function m.locateToolsetsVisualStudio(list, wks)
@@ -90,6 +110,8 @@
 
         local tools_version = getVisualStudioDefaultVersion(toolset.VSBasePath, "Tools")
         local redist_version = getVisualStudioDefaultVersion(toolset.VSBasePath, "Redist")
+        local winsdk_version = getWindowsSDKDefaultVersion()
+
         toolset.x64VSBinBasePath = path.translate(('$VSBasePath$/VC/Tools/MSVC/%s/bin/HostX64/x64'):format(tools_version))
         toolset.x86VSBinBasePath = path.translate(('$VSBasePath$/VC/Tools/MSVC/%s/bin/HostX64/x86'):format(tools_version))
 
@@ -100,15 +122,16 @@
             '$VSBasePath$/VC/Auxiliary/VS/UnitTest/{type}',
         }
 
+        local winsdk_dirs = getWindowsSDKBaseDirectories(winsdk_version)
+
         local win_include_dirs = {
-            'C:/Program Files (x86)/Windows Kits/8.1/Include/um',
-            'C:/Program Files (x86)/Windows Kits/8.1/Include/shared',
-            'C:/Program Files (x86)/Windows Kits/8.1/Include/winrt',
+            winsdk_dirs.include .. '/um',
+            winsdk_dirs.include .. '/shared',
+            winsdk_dirs.include .. '/winrt',
         }
 
         local win_lib_dirs = {
-            'C:/Program Files (x86)/Windows Kits/8.1/lib/winv6.3/um/{arch}',
-            'C:/Program Files (x86)/Windows Kits/NETFXSDK/4.6.1/Lib/um/{arch}'
+            winsdk_dirs.lib .. '/um/{arch}',
         }
 
         local extra_files = {

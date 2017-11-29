@@ -12,6 +12,7 @@
     local workspace = p.workspace
 
     local fastbuild = p.fastbuild
+    local fbuild = fastbuild
     local fbsln = fastbuild.fbsln
     local f = fastbuild.utils
 
@@ -32,9 +33,10 @@
     m.elements.workspace = function(wks) 
         return { 
             m.header,
+            m.compilers,
             m.settings,
-            m.toolsets,
-            m.platforms,
+            -- m.toolsets,
+            -- m.platforms,
             m.configurations,
             m.buildConfigurations,
             m.projects,
@@ -51,15 +53,60 @@
         p.callArray(m.elements.workspace, wks)
     end
 
+---
+-- Prints the workspace file header
+---
     function m.header(wks) 
         f.section("FASTBuild Solution: %s", wks.name)
     end
 
+---
+-- Tries to find the defined compiler file definitions and includes them to the workspace 
+---
+    function m.compilers(wks)
+        p.x("\n// Available compilers ")
+        p.x("//-----")
+
+        -- A list of all available compilers
+        local available_compilers = { }
+
+        -- Iterate over each compiler and save the architecture | system pair
+        table.foreachi(wks.fbcompilers, function(compiler)
+            local name = compiler.name 
+            local system = compiler.system
+            local architecture = compiler.architecture
+            local path = compiler.path
+
+            assert(name, "The given compiler does not have a name?")
+            assert(system, "Compiler %s does not have any target system defined!", name)
+            assert(architecture, "Compiler %s does not have any architecture defined!", name)
+            assert(path, "Where can I find the given compiler? %s [%s]", name, platform)
+
+            -- Include the compiler file and save it in the list
+            fbuild.include(fbuild.path(wks, path))
+
+            -- Save the system | architecture pair
+            local target_platform = system .. "|" .. architecture
+            assert(not available_compilers[target_platform], "Compiler for target platform %s already exists", target_platform)
+            available_compilers[target_platform] = true
+        end)
+
+        -- Check if we have a compiler for each workspace configuration (these are required to be present)
+        for config in workspace.eachconfig(wks) do
+            local target_platform = fbuild.targetPlatform(config)
+            local is_compiler_present = available_compilers[target_platform]
+            assert(is_compiler_present, "No compiler for for target platform %s!", target_platform)
+        end
+
+        -- Save the compiler list for later use 
+        wks.compilers = available_compilers
+    end
 
 ---
 -- Write settings info the solution file 
 ---
     function m.settings(wks)
+        p.x("")
         f.section("Settings")
         p.push("Settings {")
         local cache_path = _OPTIONS["fb-cache-path"]
@@ -178,135 +225,6 @@
         wks.fbuild.projects = projects
     end
 
---
--- Write out the list of toolsets in the solution.
---
-
-    function m.toolsets(wks)
-        p.w()
-        f.section("Toolsets")
-        
-        assert(not wks.toolsets)
-        wks.toolsets = { }
-
-        local toolsets = fastbuild.toolsets.findToolsets(wks)
-        local function writeToolset(name, toolset)
-            f.struct_begin("toolset_%s", name)
-            f.struct_pair("VSBasePath", toolset.VSBasePath)
-            f.struct_pair("WindowsSDKBasePath", toolset.WindowsSDKBasePath)
-            p.w()
-            f.struct_pair("x64VSBinBasePath", toolset.x64VSBinBasePath)
-            f.struct_pair("x64VSIncludeDirs", toolset.x64VSIncludeDirs)
-            f.struct_pair("x64VSLibDirs", toolset.x64VSLibDirs)
-            p.w()
-            f.struct_pair("x86VSBinBasePath", toolset.x86VSBinBasePath)
-            f.struct_pair("x86VSIncludeDirs", toolset.x86VSIncludeDirs)
-            f.struct_pair("x86VSLibDirs", toolset.x86VSLibDirs)
-            p.w()
-            f.struct_pair("VSAssembly", toolset.Assembly)
-            f.struct_pair("VSCompiler", toolset.Compiler)
-            f.struct_pair("VSLinker", toolset.Linker)
-            f.struct_pair("VSLibrarian", toolset.Librarian)
-            f.struct_end()
-        end
-
-        local function writeCompiler(name, toolset)
-            p.push("{")
-            p.x("Using( .toolset_msc141 )")
-            p.x("Compiler( 'compiler_%s' )", name)
-            p.push("{")
-            p.x(".Executable = '$x64VSBinBasePath$\\$VSCompiler$'")
-            f.struct_pair("ExtraFiles", toolset.x64CompilerExtraFiles)
-            p.pop("}")
-            p.pop("}")
-        end
-
-        for name, toolset in pairs(toolsets) do
-            writeToolset(name, toolset)
-            writeCompiler(name, toolset)
-
-            table.insert(wks.toolsets, { 
-                name = name, 
-                data = toolset,
-            })
-        end
-    end
-
---
--- Write out the list of platforms in the solution.
---
-
-    function m.platforms(wks)
-        p.w()
-        f.section("Platforms")
-
-        wks.toolchains = { }
-
-        local platform_toolset_pairs = { }
-        table.foreachi(wks.platforms, function(platform)
-            table.foreachi(wks.toolsets, function(toolset)
-                table.insert(platform_toolset_pairs, { platform = platform, toolset = toolset.name })
-            end)
-        end)
-
-        table.foreachi(platform_toolset_pairs, function(pair)
-            f.struct_begin("toolchain_%s_%s", pair.toolset, pair.platform)
-            p.w("Using( .toolset_%s )", pair.toolset)
-
-            p.w()
-            f.struct_pair("Compiler", "compiler_%s", pair.toolset) -- "$%sVSBinBasePath$\\$VSCompiler$", pair.platform)
-            f.struct_pair("CompilerOptions", '"%1"')
-            f.struct_pair_append(' /Fo"%2"')
-            f.struct_pair_append(' /c')
-            f.struct_pair_append(' /nologo')
-            f.struct_pair_append(' /FS')
-            p.w()
-            f.struct_pair("PCHOptions", '"%1"')
-            f.struct_pair_append(' /Fo"%3"')
-            f.struct_pair_append(' /c')
-            f.struct_pair_append(' /nologo')
-            f.struct_pair_append(' /FS')
-            p.w()
-            f.struct_pair("Linker", "$%sVSBinBasePath$\\$VSLinker$", pair.platform)
-            f.struct_pair("LinkerOptions", ' /OUT:"%2"')
-            f.struct_pair_append(' "%1"')
-            f.struct_pair_append(' /NOLOGO')
-            f.struct_pair_append(' /MACHINE:%s', pair.platform)
-            f.struct_pair_append(' /NXCOMPAT')
-            f.struct_pair_append(' /DYNAMICBASE')
-
-            for _, lib in pairs({ "kernel32.lib", "user32.lib", "gdi32.lib", "winspool.lib", "comdlg32.lib", "advapi32.lib", "shell32.lib", "ole32.lib", "oleaut32.lib", "uuid.lib", "odbc32.lib", "odbccp32.lib", "delayimp.lib" }) do
-                f.struct_pair_append(' "%s"', lib)
-            end
-            
-            p.w()
-            f.struct_pair("Librarian", "$%sVSBinBasePath$\\$VSLibrarian$", pair.platform)
-            f.struct_pair("LibrarianOptions", ' /OUT:"%2"')
-            f.struct_pair_append(' "%1"')
-            f.struct_pair_append(' /NOLOGO')
-            f.struct_pair_append(' /MACHINE:%s', pair.platform)
-            
-            p.w()
-            p.w("ForEach( .IncDir in .%sVSIncludeDirs )", pair.platform)
-            p.push("{")
-            p.w("^PCHOptions + ' /I\"$IncDir$\"'")
-            p.w("^CompilerOptions + ' /I\"$IncDir$\"'")
-            p.pop("}")
-            p.w()
-            p.w(".LinkerOptions + ' /LIBPATH:\"$WindowsSDKBasePath$\\Lib\\x64\"'")
-            p.w("ForEach( .LibDir in .%sVSLibDirs )", pair.platform)
-            p.push("{")
-            p.w("^LinkerOptions + ' /LIBPATH:\"$LibDir$\"'")
-            p.pop("}")
-
-
-            f.struct_end()
-
-            wks.toolchains[pair.platform] = ("%s_%s"):format(pair.toolset, pair.platform)
-        end)
-    end
-
---
 -- Write out the list of configurations in the solution.
 --
 

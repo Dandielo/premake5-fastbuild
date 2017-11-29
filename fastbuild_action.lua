@@ -22,6 +22,12 @@ p.api.register {
     kind = "number"
 }
 
+p.api.register {
+    name = "fbcompilers",
+    scope = "global",
+    kind = "list:keyed:string",
+}
+
 newoption { 
     trigger     = "fb-vstudio",
     description = "Adds tools projects to the solution"

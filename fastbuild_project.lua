@@ -13,6 +13,7 @@
     local fileconfig = p.fileconfig
 
     local fastbuild = p.fastbuild
+    local fbuild = p.fastbuild
     local fbprj = fastbuild.fbprj
 
     local f = fastbuild.utils
@@ -56,16 +57,7 @@
     end
 
     local function hasToolchain(prj)
-        local toolchains = prj.workspace.toolchains
-
-        local has
-        for cfg in project.eachconfig(prj) do 
-            has = toolchains[fastbuild.archFromConfig(cfg)]
-            if has then 
-                break
-            end
-        end
-        return has
+        return true
     end
     
     function m.generate(prj)
@@ -151,7 +143,7 @@
         f.section("Configurations")
         for cfg in project.eachconfig(prj) do
             f.struct_begin("config_%s_%s", prj.name, fastbuild.projectPlatform(cfg))
-            p.x("Using( .toolchain_%s )", toolchains[cfg.platform])
+            p.x("Using( .%s )", fbuild.targetPlatformStruct(cfg))
             p.w()
 
             p.x(".CompilerOptions + ''")
@@ -291,6 +283,8 @@
             m.element("/EHsc", "ExceptionHandling: %s", cfg.exceptionhandling)
         elseif cfg.exceptionhandling == "CThrow" then
             m.element("/EHs", "ExceptionHandling: %s", cfg.exceptionhandling)
+        else 
+            m.element("/EHsc", "ExceptionHandling: %s (default)", cfg.exceptionhandling)
         end
     end
 

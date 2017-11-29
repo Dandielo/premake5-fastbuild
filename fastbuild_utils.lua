@@ -7,8 +7,8 @@
     local p = premake
     p.fastbuild.utils = { }
 
-    local fastbuild = p.fastbuild
-    local utils = fastbuild.utils
+    local fbuild = p.fastbuild
+    local utils = fbuild.utils
 
 ---
 -- Define the FASTBuild utility constants
@@ -61,7 +61,7 @@
         end
     end
 
-    function fastbuild.struct_pair_append(value, ...)
+    function fbuild.struct_pair_append(value, ...)
         if #({...}) == 0 then 
             p.x("    + %s", value)
         else
@@ -92,4 +92,40 @@
             end
         end
         utils.struct_end()
+    end
+
+---------------------------------------------------------------------------
+--
+-- Naming utils 
+--
+---------------------------------------------------------------------------
+
+--- 
+-- Returns the target platform name for the given config
+---
+    function fbuild.targetPlatform(cfg)
+        local config = cfg.config or cfg
+        return config.system .. "|" .. config.architecture
+    end
+
+---
+-- Returns the fbuild name for the platform structure to be used for ObjectList and Library functions 
+--- 
+    function fbuild.targetPlatformStruct(cfg)
+        local config = cfg.config or cfg
+        return table.concat({ "platform", cfg.system, cfg.architecture }, "_")
+    end
+
+
+---------------------------------------------------------------------------
+--
+-- Generation utils 
+--
+---------------------------------------------------------------------------
+
+---
+-- Prints an include statement with the given path
+---
+    function fbuild.include(path) 
+        p.x('#include "%s"', path)
     end

@@ -2,31 +2,17 @@
 A premake5 module for generation of fastbuild projects. 
 
 ## Disclaimer
-This module is not stable, and is under heavy development. You can try to use it but I don't guarantee any success at this moment. 
+This module is not stable, and is under heavy development. You can try to use it but it might need a bit more work for some cases. 
 
 ## Installation 
-The installation should be quite easy if you know premake5 and lua.
-You can also follow the steps below:
 
-* Create a 'modules' directory in your main premake5.lua location.
-* Clone this repository in the 'modules' directory under the 'fastbuild' location. ``cd modules && git clone https://github.com/Dandielo/premake5-fastbuild.git fastbuild``
-* Add in your main premake5.lua file the following line ``require "fastbuild"``
+A detailed installation guide can be found [here](https://github.com/Dandielo/premake5-fastbuild/wiki/Installation).
 
-### Remarks
-So far this module works only on Windows machines with Visual Studio Community or Profesional installed.
-
-Additionally you need to make sure that you got the following components installed: ``Windows Universal CRT SDK`` and ``Windows 8.1 SDK`` (for windows header files)
+### Additional remarks
+So far this module works only with msc compilers because argument's are still hardcoded with this syntax.
 
 ### Command line options 
-All additional premake5 command line options available with this module. 
-
-#### --fb-vstudio 
-Whith this option you can generate FastBuild targets which can be used to generate a Visual Studio soluton which uses FastBuild instead of the default compiler.
-
-The generated fastbuild target will have the following name ``{workspace_name}_sln`` which you can build with the following command ``fbuild -config {workspace_name}.wks.bff {workspace_name}_sln``.
-
-#### --fb-cache-path=PATH
-Sets the ``.CachePath`` entry in the Settings section in the fastbuild ``{workspace}.wks.bff`` file. This can be used instead of setting the ``FASTBUILD_CACHE_PATH`` enviroment variable. 
+All additional premake5 command line options available with this module can be found [here](https://github.com/Dandielo/premake5-fastbuild/wiki/command-line-options). 
 
 ## Contribute 
 Any help is welcome!

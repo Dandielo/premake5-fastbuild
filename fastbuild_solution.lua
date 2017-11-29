@@ -84,7 +84,10 @@
 
         local projects = { 
             list = { },
-            paths = { }
+            paths = { },
+            groups = { [""] = { } },
+            groups_stack = { "" },
+            group_current = ""
         }
 
         function projects.onleaf(self)
@@ -103,6 +106,21 @@
             end
         end
 
+        function projects.onbranch(self)
+            return function(n)
+                self.current_group = n.name
+                self.groups[n.name] = self.groups[n.name] or { }
+                table.insert(self.groups_stack, n.name)
+            end
+        end
+
+        function projects.onbranchexit(self)
+            return function()
+                table.remove(self.groups_stack, #self.groups_stack)
+                self.current_group = self.groups_stack[#self.groups_stack]
+            end
+        end
+
         function projects.add(self, prj, path)
             local refs = project.getdependencies(prj, 'all')
             for _, ref in pairs(refs or { }) do
@@ -111,6 +129,7 @@
 
             if path and not self.paths[prj.name] then 
                 self.paths[prj.name] = path
+                table.insert(self.groups[self.current_group], prj.name)
             end
 
             table.insert(self.list, prj)
@@ -134,8 +153,16 @@
             end
         end
 
+        function projects.for_each_group(self, func)
+            for key, prjs in pairs(self.groups) do 
+                func(key, prjs)
+            end
+        end
+
         tree.traverse(tr, {
-            onleaf = projects:onleaf()
+            onleaf = projects:onleaf(),
+            onbranch = projects:onbranch(),
+            onbranchexit = projects:onbranchexit()
         })
 
         for cfg in p.workspace.eachconfig(wks) do
@@ -331,11 +358,27 @@
 
         return { 
             m.solutionVStudioConfigs,
+            m.solutionProjectFolders,
             m.solutionAllProject,
             m.solutionVStudioBegin,
             m.solutionVStudioProjects,
             m.solutionVStudioEnd,
         } 
+    end
+
+    function m.solutionProjectFolders(wks)
+        p.x(".%s_SolutionFolders = { }", wks.name)
+        wks.fbuild.projects:for_each_group(function(group, prjs)
+            p.push(".%sFolder_%s = [", wks.name, group)
+            p.x(".Path = '%s'", group)
+            p.push(".Projects = {")
+            for _, prj in pairs(prjs) do 
+                p.x("'%s_vcxproj', ", prj)
+            end
+            p.pop("}")
+            p.pop("]")
+            p.x(".%s_SolutionFolders + .%sFolder_%s", wks.name, wks.name, group)
+        end)
     end
 
     function m.solutionVisualStudio(wks)
@@ -374,6 +417,7 @@
         p.x(".SolutionOutput = '%s\\%s_fb.sln'", fastbuild.path(wks, wks.location), wks.name)
         p.x(".SolutionConfigs = .%sSolutionConfigs", wks.name)
         p.x(".SolutionBuildProject = 'all_vcxproj'")
+        p.x(".SolutionFolders = .%s_SolutionFolders", wks.name)
 
         p.push(".execDeps = [")
         p.push(".Projects = {")

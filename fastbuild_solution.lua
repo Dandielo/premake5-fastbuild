@@ -362,9 +362,9 @@
         p.push("{")
         p.x(".ProjectOutput = '..\\build\\fastbuild\\All.vcxproj'", fastbuild.path(wks, wks.location))
         p.x(".ProjectConfigs = .%sSolutionConfigs", wks.name)
-        p.x(".ProjectBuildCommand = 'cd \"^$(SolutionDir)\" &amp; fbuild -config %s.wks.bff -ide -monitor -dist -cache all-^$(Platform)-^$(Configuration)'", wks.name)
-        p.x(".ProjectRebuildCommand = 'cd \"^$(SolutionDir)\" &amp; fbuild -config %s.wks.bff -ide -monitor -dist -cache -clean all-^$(Platform)-^$(Configuration)'", wks.name)
-        p.x(".ProjectCleanCommand = 'cd \"^$(SolutionDir)\" &amp; fbuild -config %s.wks.bff -ide -monitor -dist -cache -clean'", wks.name)
+        p.x(".ProjectBuildCommand = 'cd \"^$(SolutionDir)\" &amp; fbuild -config %s -ide -monitor -dist -cache all-^$(Platform)-^$(Configuration)'", wks.filename)
+        p.x(".ProjectRebuildCommand = 'cd \"^$(SolutionDir)\" &amp; fbuild -config %s -ide -monitor -dist -cache -clean all-^$(Platform)-^$(Configuration)'", wks.filename)
+        p.x(".ProjectCleanCommand = 'cd \"^$(SolutionDir)\" &amp; fbuild -config %s -ide -monitor -dist -cache -clean'", wks.filename)
         p.pop("}")
     end
 

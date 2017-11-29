@@ -66,7 +66,7 @@
 
     local function getWindowsSDKDefaultVersion()
         local reg_arch = iif(os.is64bit(), "\\Wow6432Node\\", "\\")
-        return os.getWindowsRegistry("HKLM:SOFTWARE" .. reg_arch .."Microsoft\\Microsoft SDKs\\Windows\\v10.0\\ProductVersion")
+        return os.getWindowsRegistry and os.getWindowsRegistry("HKLM:SOFTWARE" .. reg_arch .."Microsoft\\Microsoft SDKs\\Windows\\v10.0\\ProductVersion") or "8.1" -- fallback SDK
     end
 
     local function getVisualStudioDefaultVersion(base_path, type)

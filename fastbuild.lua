@@ -16,6 +16,5 @@
     require "fastbuild_utils"
     require "fastbuild_platforms"
     require "fastbuild_toolset"
-    require "fastbuild_compiler"
     require "fastbuild_solution"
     require "fastbuild_project"

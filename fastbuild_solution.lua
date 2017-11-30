@@ -35,8 +35,6 @@
             m.header,
             m.compilers,
             m.settings,
-            -- m.toolsets,
-            -- m.platforms,
             m.configurations,
             m.buildConfigurations,
             m.projects,

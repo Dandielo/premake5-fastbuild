@@ -14,6 +14,7 @@
     -- load actions.
     require "fastbuild_action"
     require "fastbuild_utils"
+    require "fastbuild_dependency_resolver"
     require "fastbuild_platforms"
     require "fastbuild_toolset"
     require "fastbuild_solution"

@@ -94,11 +94,23 @@
         utils.struct_end()
     end
 
+    function fbuild.call(func, ...)
+        local args = { ... }
+        return function()
+            return func(args[1], args[2], args[3], args[4], args[5], args[6])
+        end
+    end
+
 ---------------------------------------------------------------------------
 --
 -- Naming utils 
 --
 ---------------------------------------------------------------------------
+
+    function fbuild.targetName2(obj, cfg)
+        local name = obj.name or obj
+        return table.concat({ name, cfg.buildcfg, cfg.platform }, "-")
+    end
 
 --- 
 -- Returns the target platform name for the given config
@@ -128,6 +140,19 @@
 ---
     function fbuild.include(path) 
         p.x('#include "%s"', path)
+    end
+
+---
+-- Emits an Alias function call
+--- 
+    function fbuild.emitAlias(name, targets, fmap)
+        fmap = iif(fmap, fmap, function(e) return e end)
+
+        fbuild.emitFunction("Alias", name, { 
+            call(fbuild.emitList, "Targets", {
+                call(fbuild.emitListItems, targets, fmap)
+            })
+        })
     end
 
 ---------------------------------------------------------------------------

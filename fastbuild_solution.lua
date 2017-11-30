@@ -11,6 +11,11 @@
     local project = p.project
     local workspace = p.workspace
 
+    local fbuild = p.fastbuild
+    local dependency_resolver = fbuild.dependency_resolver
+
+
+
     local fastbuild = p.fastbuild
     local fbuild = fastbuild
     local fbsln = fastbuild.fbsln
@@ -133,7 +138,7 @@
         p.x("//-----")
 
         for cfg in p.workspace.eachconfig(wks) do
-            p.x(".AllTargets_%s = { }", fastbuild.solutionConfig(cfg))
+            p.x(".AllTargets_%s = { }", fbuild.solutionConfig(cfg))
         end
     end
 
@@ -141,104 +146,14 @@
 -- Write out the list of projects and groups contained by the solution.
 ---
     function m.includeProjects(wks)
-        local tr = p.workspace.grouptree(wks)
-
-        assert(not wks.targets)
-        wks.targets = { }
-
         p.x("\n// Included projects ")
         p.x("//-----")
 
-        local projects = { 
-            list = { },
-            paths = { },
-            groups = { [""] = { } },
-            groups_stack = { "" },
-            group_current = ""
-        }
-
-        function projects.onleaf(self)
-            return function(n)
-                local prj = n.project
-
-                -- Build a relative path from the solution file to the project file
-                local prjpath = p.filename(prj, ".prj.bff")
-                prjpath = fastbuild.path(prj.workspace, prjpath)
-
-                -- Sort by dependencies 
-                self:add(prj, prjpath)
-
-                -- p.x('#include "%s"', prjpath)
-                -- sln2005.projectdependencies(prj)
-            end
-        end
-
-        function projects.onbranch(self)
-            return function(n)
-                self.current_group = n.name
-                self.groups[n.name] = self.groups[n.name] or { }
-                table.insert(self.groups_stack, n.name)
-            end
-        end
-
-        function projects.onbranchexit(self)
-            return function()
-                table.remove(self.groups_stack, #self.groups_stack)
-                self.current_group = self.groups_stack[#self.groups_stack]
-            end
-        end
-
-        function projects.add(self, prj, path)
-            local refs = project.getdependencies(prj, 'all')
-            for _, ref in pairs(refs or { }) do
-                self:add(ref)
-            end
-
-            if path and not self.paths[prj.name] then 
-                self.paths[prj.name] = path
-                table.insert(self.groups[self.current_group], prj.name)
-            end
-
-            table.insert(self.list, prj)
-        end
-
-        function projects.remove_duplicates(self)
-            local found = { }
-            local sorted = { }
-            for _, prj in pairs(self.list) do 
-                if not found[prj.name] then
-                    found[prj.name] = prj
-                    table.insert(sorted, prj)
-                end
-            end
-            self.list = sorted
-        end
-
-        function projects.for_each(self, func)
-            for _, prj in pairs(self.list) do 
-                func(prj, self.paths[prj.name])
-            end
-        end
-
-        function projects.for_each_group(self, func)
-            for key, prjs in pairs(self.groups) do 
-                func(key, prjs)
-            end
-        end
-
-        tree.traverse(tr, {
-            onleaf = projects:onleaf(),
-            onbranch = projects:onbranch(),
-            onbranchexit = projects:onbranchexit()
-        })
-        p.x("")
-
-        projects:remove_duplicates()
-        projects:for_each(function(prj, path) 
-            p.x('#include "%s"', path)
+        -- Resolves project dependencies and calls the callback for each project in a ordered way
+        dependency_resolver.eachproject(wks, function(prj)
+            local location = fbuild.path(wks, p.filename(prj, ".prj.bff"))
+            fbuild.include(location)
         end)
-
-        wks.fbuild.projects = projects
     end
 
 
@@ -247,12 +162,11 @@
         p.x("\n// All targets (for default configurations) ")
         p.x("//-----")
 
-        -- for cfg in p.workspace.eachconfig(wks) do
-        --     p.x("Alias('all-%s-%s')", cfg.platform, cfg.buildcfg)
-        --     p.push("{")
-        --     p.x(".Targets = .AllTargets_%s", fastbuild.solutionConfig(cfg))
-        --     p.pop("}")
-        -- end
+        for cfg in workspace.eachconfig(wks) do 
+            fbuild.emitFunction("Alias", fbuild.targetName2("all", cfg), {
+                fbuild.call(p.x, ".Targets = .AllTargets_%s", fbuild.solutionConfig(cfg))
+            })
+        end
     end
 
 ---------------------------------------------------------------------------
@@ -279,17 +193,17 @@
 
     function m.solutionProjectFolders(wks)
         p.x(".%s_SolutionFolders = { }", wks.name)
-        wks.fbuild.projects:for_each_group(function(group, prjs)
-            p.push(".%sFolder_%s = [", wks.name, group)
-            p.x(".Path = '%s'", group)
-            p.push(".Projects = {")
-            for _, prj in pairs(prjs) do 
-                p.x("'%s_vcxproj', ", prj)
-            end
-            p.pop("}")
-            p.pop("]")
-            p.x(".%s_SolutionFolders + .%sFolder_%s", wks.name, wks.name, group)
-        end)
+        -- wks.fbuild.projects:for_each_group(function(group, prjs)
+        --     p.push(".%sFolder_%s = [", wks.name, group)
+        --     p.x(".Path = '%s'", group)
+        --     p.push(".Projects = {")
+        --     for _, prj in pairs(prjs) do 
+        --         p.x("'%s_vcxproj', ", prj)
+        --     end
+        --     p.pop("}")
+        --     p.pop("]")
+        --     p.x(".%s_SolutionFolders + .%sFolder_%s", wks.name, wks.name, group)
+        -- end)
     end
 
     function m.solutionVisualStudio(wks)
@@ -328,7 +242,7 @@
         p.x(".SolutionOutput = '%s\\%s_fb.sln'", fastbuild.path(wks, wks.location), wks.name)
         p.x(".SolutionConfigs = .%sSolutionConfigs", wks.name)
         p.x(".SolutionBuildProject = 'all_vcxproj'")
-        p.x(".SolutionFolders = .%s_SolutionFolders", wks.name)
+        -- p.x(".SolutionFolders = .%s_SolutionFolders", wks.name)
 
         p.push(".execDeps = [")
         p.push(".Projects = {")
@@ -341,14 +255,14 @@
         p.x(".Dependencies = { 'all_vcxproj' }")
         p.pop("]")
 
-        p.push(".SolutionDependencies = { .execDeps }")
+        p.x(".SolutionDependencies = { .execDeps }")
     end
 
     function m.solutionVStudioProjects(wks)
         p.push(".SolutionProjects = {")
-        wks.fbuild.projects:for_each(function(prj)
-            p.x("'%s_vcxproj',", prj.name)
-        end)
+        -- wks.fbuild.projects:for_each(function(prj)
+        --     p.x("'%s_vcxproj',", prj.name)
+        -- end)
         p.x("'all_vcxproj',")
         p.pop("}")
         -- body

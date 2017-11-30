@@ -124,8 +124,88 @@
 ---------------------------------------------------------------------------
 
 ---
--- Prints an include statement with the given path
+-- Emits an include statement with the given path to the output file
 ---
     function fbuild.include(path) 
         p.x('#include "%s"', path)
+    end
+
+---------------------------------------------------------------------------
+--
+-- Emitting functions, statements, structs and scopes
+--
+---------------------------------------------------------------------------
+
+
+---
+-- Emits a Using statement to the output file 
+---
+    function fbuild.emitUsing(value, ...)
+        p.x("Using( .%s )", value:format(...))
+    end
+
+---
+-- Emits a function call to the output file 
+---
+    function fbuild.emitFunction(name, alias, inner, after, ...)
+        if alias and #alias > 0 then
+            p.x("%s( '%s' )", name, alias)
+        else
+            p.x("%s()", name)
+        end
+        fbuild.emitScope(inner, after, ...)
+    end
+
+---
+-- Emits a for loop statement to the output file 
+---
+    function fbuild.emitForLoop(arg, array, inner, after, ...)
+        p.x("ForEach( .%s in .%s ) ", arg, array)
+        fbuild.emitScope(inner, after, arg, ...)
+    end
+
+---
+-- Emits a list definition to the output file 
+---
+    function fbuild.emitList(name, inner, after, ...)
+        p.x(".%s = ", name)
+        fbuild.emitScope(inner, after, ...)
+    end
+
+---
+-- Emits items to the output file 
+---
+    function fbuild.emitListItems(items, fmap, check)
+        if not fmap then 
+            fmap = function(e) return e end
+        end
+
+        for _, item in pairs(items) do 
+            if not check or check(item) then
+                p.x("'%s', ", fmap(item))
+            end
+        end
+    end
+
+---
+-- Emits a scope construct to the output file 
+---
+    function fbuild.emitScope(inner, after, ...)
+        p.push("{")
+        p.callArray(inner, ...)
+        p.pop("}")
+        p.callArray(after, ...)
+        p.x("")
+    end
+
+---
+-- Emits a struct definition to the output file 
+---
+    function fbuild.emitStruct(name, inner, after, ...)
+        p.x(".%s = ", name)
+        p.push("[")
+        p.callArray(inner, ...)
+        p.pop("]")
+        p.callArray(after, ...)
+        p.x("")
     end

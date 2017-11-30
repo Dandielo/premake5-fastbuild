@@ -32,13 +32,14 @@
     
     m.elements.workspace = function(wks) 
         return { 
+            -- General 
             m.header,
-            m.compilers,
             m.settings,
-            m.configurations,
-            m.buildConfigurations,
-            m.projects,
-            m.targets,
+            m.compilers,
+            -- Projects 
+            m.allStructs,
+            m.includeProjects,
+            m.allTargets,
             m.solutionVisualStudio
         }
     end
@@ -103,29 +104,50 @@
 ---
 -- Write settings info the solution file 
 ---
+    m.elements.settings = function(wks)
+        return {
+            m.settingCachePath
+        }
+    end
+
     function m.settings(wks)
-        p.x("")
-        f.section("Settings")
-        p.push("Settings {")
+        p.x("\n// FASTBuild settings ")
+        p.x("//-----")
+
+        p.x("Settings") -- The 'Settings' element in fastbuild is quite special, it's not a function call nor a struct so we 'emulate' it with a scope 
+        fbuild.emitScope(m.elements.settings)
+    end
+
+    function m.settingCachePath(wks)
         local cache_path = _OPTIONS["fb-cache-path"]
         if cache_path and #cache_path > 0 then 
             p.x(".CachePath = '%s'", path.translate(cache_path))
         end
-        p.pop("}")
     end
 
---
--- Write out the list of projects and groups contained by the solution.
---
+---
+-- Emit 'All' structs which will hold all targets to be compiled when using an 'All' target
+---
+    function m.allStructs(wks)
+        p.x("\n// All structures (used to create 'All' alliases)")
+        p.x("//-----")
 
-    function m.projects(wks)
+        for cfg in p.workspace.eachconfig(wks) do
+            p.x(".AllTargets_%s = { }", fastbuild.solutionConfig(cfg))
+        end
+    end
+
+---
+-- Write out the list of projects and groups contained by the solution.
+---
+    function m.includeProjects(wks)
         local tr = p.workspace.grouptree(wks)
 
         assert(not wks.targets)
         wks.targets = { }
 
-        p.w()
-        f.section("Projects") 
+        p.x("\n// Included projects ")
+        p.x("//-----")
 
         local projects = { 
             list = { },
@@ -209,10 +231,6 @@
             onbranch = projects:onbranch(),
             onbranchexit = projects:onbranchexit()
         })
-
-        for cfg in p.workspace.eachconfig(wks) do
-            p.x(".AllTargets_%s = { }", fastbuild.solutionConfig(cfg))
-        end
         p.x("")
 
         projects:remove_duplicates()
@@ -223,41 +241,18 @@
         wks.fbuild.projects = projects
     end
 
--- Write out the list of configurations in the solution.
---
 
-    function m.configurations(wks)
-        p.w()
-        f.section("Configurations") 
-    end
 
---
--- Write out the tables that map solution configurations to project configurations.
---
+    function m.allTargets(wks)
+        p.x("\n// All targets (for default configurations) ")
+        p.x("//-----")
 
-    function m.buildConfigurations(wks)
-        p.w()
-        f.section("Build configurations") 
-
-        local descriptors = {}
-
-        -- Create 
-        for cfg in p.workspace.eachconfig(wks) do
-            local platform = fastbuild.solutionPlatform(cfg)
-            table.insert(descriptors, string.format(".%s_%s", cfg.buildcfg, platform))
-        end
-    end
-
-    function m.targets(wks)
-        p.w()
-        f.section("Target Aliases")
-
-        for cfg in p.workspace.eachconfig(wks) do
-            p.x("Alias('all-%s-%s')", cfg.platform, cfg.buildcfg)
-            p.push("{")
-            p.x(".Targets = .AllTargets_%s", fastbuild.solutionConfig(cfg))
-            p.pop("}")
-        end
+        -- for cfg in p.workspace.eachconfig(wks) do
+        --     p.x("Alias('all-%s-%s')", cfg.platform, cfg.buildcfg)
+        --     p.push("{")
+        --     p.x(".Targets = .AllTargets_%s", fastbuild.solutionConfig(cfg))
+        --     p.pop("}")
+        -- end
     end
 
 ---------------------------------------------------------------------------

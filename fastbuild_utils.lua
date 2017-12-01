@@ -97,6 +97,7 @@
     function fbuild.call(func, ...)
         local args = { ... }
         return function()
+            -- #todo use unpack or table.unpack, we dont want to only support premake with lua 5.3+
             return func(args[1], args[2], args[3], args[4], args[5], args[6])
         end
     end

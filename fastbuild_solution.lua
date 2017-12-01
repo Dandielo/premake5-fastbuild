@@ -23,11 +23,14 @@
 
     local m = p.fastbuild.fbsln
 
+
+
 ---
 -- Add namespace for element definition lists for p.callArray()
 ---
 
     m.elements = {}
+
 
 
 --
@@ -49,6 +52,8 @@
         }
     end
     
+
+
 ---
 -- Define the FASTBuild solution generation function
 ---
@@ -57,12 +62,16 @@
         p.callArray(m.elements.workspace, wks)
     end
 
+
+
 ---
 -- Prints the workspace file header
 ---
     function m.header(wks) 
         f.section("FASTBuild Solution: %s", wks.name)
     end
+
+
 
 ---
 -- Tries to find the defined compiler file definitions and includes them to the workspace 
@@ -108,6 +117,8 @@
         wks.compilers = available_compilers
     end
 
+
+
 ---
 -- Write settings info the solution file 
 ---
@@ -132,6 +143,8 @@
         end
     end
 
+
+
 ---
 -- Emit 'All' structs which will hold all targets to be compiled when using an 'All' target
 ---
@@ -143,6 +156,8 @@
             p.x(".AllTargets_%s = { }", fbuild.solutionConfig(cfg))
         end
     end
+
+
 
 ---
 -- Write out the list of projects and groups contained by the solution.
@@ -170,6 +185,8 @@
             })
         end
     end
+
+
 
 ---------------------------------------------------------------------------
 --

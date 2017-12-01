@@ -99,7 +99,7 @@
         for config in workspace.eachconfig(wks) do
             local target_platform = fbuild.targetPlatform(config)
             local is_compiler_present = available_compilers[target_platform]
-            assert(is_compiler_present, "No compiler for for target platform %s!", target_platform)
+            assert(is_compiler_present, ("No compiler found for target platform %s!":format(target_platform))
         end
 
         -- Save the compiler list for later use 

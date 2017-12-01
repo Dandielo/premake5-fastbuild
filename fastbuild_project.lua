@@ -61,7 +61,7 @@
         local configs_have_compilers = true
 
         for cfg in project.eachconfig(prj) do 
-            configs_have_compilers = configs_have_compilers and wks.compilers[fbuild.targetPlatform(cfg)] ~= nil
+            configs_have_compilers = configs_have_compilers and wks.compilers[fbuild.targetCompilerPlatform(cfg)] ~= nil
         end
 
         return configs_have_compilers
@@ -152,7 +152,7 @@
         f.section("Configurations")
         for cfg in project.eachconfig(prj) do
             f.struct_begin("config_%s_%s", prj.name, fastbuild.projectPlatform(cfg))
-            p.x("Using( .%s )", fbuild.targetPlatformStruct(cfg))
+            p.x("Using( .%s )", fbuild.targetCompilerPlatformStruct(cfg))
             p.w()
 
             p.x(".CompilerOptions + ''")
@@ -1553,7 +1553,7 @@
     end
 
     function m.projectVStudioBegin(prj)
-        p.x("VCXProject( '%s_vcxproj' )", prj.name)
+        p.x("VCXProject( '%s' )", fbuild._targetName(prj, nil, "vcxproj"))
         p.push("{")
         p.x(".ProjectOutput = '%s\\%s.vcxproj'", fastbuild.path(prj, prj.location), prj.name)
         p.x(".ProjectConfigs = .%sProjectConfigs", prj.name)

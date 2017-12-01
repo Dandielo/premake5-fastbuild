@@ -12,22 +12,31 @@
     local workspace = p.workspace
 
     local m = p.fastbuild.dependency_resolver
+    m.resolved = { }
 
 ---
 -- Calls the function for each project in the workspace in dependency relative order 
 ---
     
-    m.resolved = { }
     
     function m.eachproject(wks, func)
+        for _, prj in pairs(m.allprojects(wks)) do 
+            func(prj)
+        end
+    end
+
+
+---
+-- Returns a list of projets in dependency relative order 
+---
+    function m.allprojects(wks)
         if not m.resolved[wks.name] then 
             m.resolved[wks.name] = m.projectsResolved(wks)
         end
 
-        for _, prj in pairs(m.resolved[wks.name]) do 
-            func(prj)
-        end
+        return m.resolved[wks.name]
     end
+
 
 
 ---

@@ -102,39 +102,118 @@
         end
     end
 
+
+
 ---------------------------------------------------------------------------
 --
 -- Naming utils 
 --
 ---------------------------------------------------------------------------
 
+---
+-- Filters nil values from the given (array or table) and returs an ARRAY!
+---
+    local function filterempty(tab)
+        local result = { }
+        for _, v in pairs(tab) do 
+            if v then 
+                table.insert(result, v)
+            end
+        end
+        return result
+    end
+
+
+
+---
+-- Returns a generated name for project configuration scopes
+---
+
+    local function generatedNameConfig(separator, cfg, prefix, suffix)
+        cfg = cfg.config or cfg
+        return table.concat(filterempty({ prefix, cfg.platform, cfg.buildcfg, suffix }), separator)
+    end
+
+
+
+---
+-- Returns a generated name for project and workspace scopes
+---
+
+    local function generatedNameProject(separator, prj, prefix, suffix)
+        prj = prj.project or prj
+        return table.concat(filterempty({ prefix, iif(prj.name, prj.name, prj), suffix }), separator)
+    end
+
+
+
+---
+-- Returns a string separated with 'minus' characters
+---
+
     function fbuild.targetName2(obj, cfg, join)
         local name = obj.name or obj
         return table.concat({ name, cfg.platform, cfg.buildcfg }, iif(join, join, "-"))
     end
+    
+
+    function fbuild._targetName(cfg, prefix, suffix)
+        return iif(cfg.project and cfg.project ~= cfg, generatedNameConfig, generatedNameProject)("-", cfg, prefix, suffix)
+    end
+
+
+
+---
+-- Returns a string separated with 'underscore' characters
+---
+
+    function fbuild.listName(cfg, prefix, suffix)
+        return iif(cfg.project, generatedNameConfig, generatedNameProject)("_", cfg, prefix, suffix)
+    end
+
+
+
+---
+-- Returns a string separated with 'underscore' characters
+---
+
+    function fbuild.structName(cfg, prefix, suffix)
+        return iif(cfg.project, generatedNameConfig, generatedNameProject)("_", cfg, prefix, suffix)
+    end
+
+
 
 --- 
 -- Returns the target platform name for the given config
 ---
+
     function fbuild.targetPlatform(cfg)
         local config = cfg.config or cfg
-        return table.concat({ config.system, config.architecture, (config.toolset:gsub("%-", "_")) }, "|")
+        return table.concat({ config.system, config.architecture }, "|")
     end
+
+
 
 ---
 -- Returns the fbuild name for the platform structure to be used for ObjectList and Library functions 
 --- 
-    function fbuild.targetPlatformStruct(cfg)
-        return fbuild.targetPlatformCompilerStruct(cfg)
+
+    function fbuild.targetCompilerPlatform(cfg)
+        local config = cfg.config or cfg
+        return table.concat({ config.system, config.architecture, (config.toolset:gsub("%-", "_")) }, "|")
     end
+
+
 
 ---
 -- Returns the struct name for the given platforms additional defined compiler, additional compiler suffixes: res
 ---
-    function fbuild.targetPlatformCompilerStruct(cfg, suffix)
+
+    function fbuild.targetCompilerPlatformStruct(cfg, suffix)
         local config = cfg.config or cfg
-        return ((table.concat({ "platform", cfg.system, cfg.architecture, config.toolset, suffix }, "_")):gsub("%-", "_"))
+        return ((table.concat({ "platform", config.system, config.architecture, config.toolset, suffix }, "_")):gsub("%-", "_"))
     end
+
 
 
 ---------------------------------------------------------------------------
@@ -146,13 +225,17 @@
 ---
 -- Emits an include statement with the given path to the output file
 ---
+
     function fbuild.include(path) 
         p.x('#include "%s"', path)
     end
 
+
+
 ---
 -- Emits an Alias function call
 --- 
+
     function fbuild.emitAlias(name, targets, fmap)
         fmap = iif(fmap, fmap, function(e) return e end)
 
@@ -162,6 +245,8 @@
             })
         })
     end
+
+
 
 ---------------------------------------------------------------------------
 --
@@ -173,13 +258,17 @@
 ---
 -- Emits a Using statement to the output file 
 ---
+
     function fbuild.emitUsing(value, ...)
         p.x("Using( .%s )", value:format(...))
     end
 
+
+
 ---
 -- Emits a function call to the output file 
 ---
+
     function fbuild.emitFunction(name, alias, inner, after, ...)
         if alias and #alias > 0 then
             p.x("%s( '%s' )", name, alias)
@@ -189,40 +278,51 @@
         fbuild.emitScope(inner, after, ...)
     end
 
+
+
 ---
 -- Emits a for loop statement to the output file 
 ---
+
     function fbuild.emitForLoop(arg, array, inner, after, ...)
         p.x("ForEach( .%s in .%s ) ", arg, array)
         fbuild.emitScope(inner, after, arg, ...)
     end
 
+
+
 ---
 -- Emits a list definition to the output file 
 ---
+
     function fbuild.emitList(name, inner, after, ...)
         p.x(".%s = ", name)
         fbuild.emitScope(inner, after, ...)
     end
 
+
+
 ---
 -- Emits items to the output file 
 ---
-    function fbuild.emitListItems(items, fmap, check)
-        if not fmap then 
-            fmap = function(e) return e end
-        end
 
-        for _, item in pairs(items) do 
-            if not check or check(item) then
-                p.x("'%s', ", fmap(item))
+    function fbuild.emitListItems(items, fmap, ...)
+        fmap = iif(fmap, fmap, fbuild.fmap.pass)
+
+        for _, item in ipairs(items) do
+            local val = fmap(item, ...)
+            if val then 
+                p.x("%s, ", val)
             end
         end
     end
 
+
+
 ---
 -- Emits a scope construct to the output file 
 ---
+
     function fbuild.emitScope(inner, after, ...)
         p.push("{")
         p.callArray(inner, ...)
@@ -231,9 +331,12 @@
         p.x("")
     end
 
+
+
 ---
 -- Emits a struct definition to the output file 
 ---
+
     function fbuild.emitStruct(name, inner, after, ...)
         p.x(".%s = ", name)
         p.push("[")
@@ -241,4 +344,45 @@
         p.pop("]")
         p.callArray(after, ...)
         p.x("")
+    end
+
+
+
+---
+-- Emits a struct value definition 
+---
+
+    function fbuild.emitStructValue(name, value, append, fmap)
+        p.x(".%s %s %s", name, iif(append, "+", "="), iif(fmap, fmap, fbuild.fmap.pass)(value))
+    end
+
+
+
+---
+-- Emits to parent struct value definition 
+---
+
+    function fbuild.emitParentStructValue(name, value, fmap)
+        p.x("^%s %s %s", name, "+", iif(fmap, fmap, fbuild.fmap.pass)(value))
+    end
+
+
+
+---
+-- FMap functions so we can later use them without defining them everywhere 
+---
+
+    fbuild.fmap = { }
+    local fmap = fbuild.fmap
+
+    function fmap.pass(value)
+        return value
+    end
+
+    function fmap.quote(value)
+        return ("'%s'"):format(tostring(value))
+    end
+
+    function fmap.list(values)
+        return ("{ %s }"):format(table.concat(values, ", "))
     end

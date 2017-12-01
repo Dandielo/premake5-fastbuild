@@ -117,7 +117,7 @@
 ---
     function fbuild.targetPlatform(cfg)
         local config = cfg.config or cfg
-        return config.system .. "|" .. config.architecture
+        return table.concat({ config.system, config.architecture, config.toolset }, "|")
     end
 
 ---
@@ -125,7 +125,7 @@
 --- 
     function fbuild.targetPlatformStruct(cfg)
         local config = cfg.config or cfg
-        return table.concat({ "platform", cfg.system, cfg.architecture }, "_")
+        return table.concat({ "platform", cfg.system, cfg.architecture, config.toolset }, "_")
     end
 
 

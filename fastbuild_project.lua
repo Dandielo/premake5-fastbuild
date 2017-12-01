@@ -57,7 +57,14 @@
     end
 
     local function hasToolchain(prj)
-        return true
+        local wks = prj.workspace
+        local configs_have_compilers = true
+
+        for cfg in project.eachconfig(prj) do 
+            configs_have_compilers = configs_have_compilers and wks.compilers[fbuild.targetPlatform(cfg)] ~= nil
+        end
+
+        return configs_have_compilers
     end
     
     function m.generate(prj)
@@ -740,35 +747,35 @@
 
         emitLibs = function(prj, group, mapped_files)
 
-            local function scopedFunction()
-                for cfg in project.eachconfig(prj) do
+            local function scopedFunction(cfg)
 
-                    for content, files in pairs(mapped_files.custom[cfg]) do 
+                for content, files in pairs(mapped_files.custom[cfg]) do 
 
-                        local asm_object_list = {
-                            m.objectListPreBuildDependency(".{prj}_{platform}_compile_dependencies", true),
-                            m.objectListCompiler("$x64VSBinBasePath$\\$VSAssembly$"),
-                            m.objectListCompilerOutputPath,
-                            m.objectListCompilerInputFilesRoot,
-                            m.objectListCompilerOptions(' = \'/c /Cx /nologo /Fo"%2" "%1"\''),
-                            m.objectListCompilerInputFiles
-                        }
+                    local asm_object_list = {
+                        m.objectListPreBuildDependency(".{prj}_{platform}_compile_dependencies", true),
+                        m.objectListCompiler("$AssemblyExe$"),
+                        m.objectListCompilerOutputPath,
+                        m.objectListCompilerInputFilesRoot,
+                        m.objectListCompilerOptions(' = \'/c /Cx /nologo /Fo"%2" "%1"\''),
+                        m.objectListCompilerInputFiles
+                    }
 
-                        local function emitObjectListLib(data)
-                            p.x("^libs_%s_%s + { '%s' }", data.prj.name, data.platform, data.name)
-                        end
-
-                        local lib = m.writeObjectList(prj, cfg, files, "asm", asm_object_list, { emitObjectListLib })
-
+                    local function emitObjectListLib(data)
+                        p.x("^libs_%s_%s + { '%s' }", data.prj.name, data.platform, data.name)
                     end
 
+                    local lib = m.writeObjectList(prj, cfg, files, "asm", asm_object_list, { emitObjectListLib })
+
                 end
+
             end
 
-            m.emitScope({ 
-                m.emitUsingCA("toolset_msc141"),
-                scopedFunction,
-            })
+            for cfg in project.eachconfig(prj) do
+                m.emitScope({ 
+                    m.emitUsingCA(fbuild.targetPlatformStruct(cfg)),
+                    scopedFunction,
+                }, {}, cfg)
+            end
         end,
 
         emitFilter = function(prj, group)

@@ -48,6 +48,19 @@
     end
 
 ---
+-- Given a project add it and all it's dependencies to the given list starting with it's dependencies
+---
+    local function add_project_to_list(list, proj)
+        local dependencies = project.getdependencies(proj, 'all')
+
+        table.foreachi(dependencies, function(dependency)
+            add_project_to_list(list, dependency)
+        end)
+
+        table.insert(list, proj)
+    end
+
+---
 -- Returns a list of projects in dependency relative order 
 ---
     function m.projectsResolved(wks)
@@ -62,12 +75,7 @@
                 local dependencies = project.getdependencies(proj, 'all')
 
                 -- Add each dependency to the list
-                table.foreachi(dependencies, function(dependency)
-                    table.insert(projects_list, dependency)
-                end)
-
-                -- Add the project itself as last element
-                table.insert(projects_list, proj)
+                add_project_to_list(projects_list, proj)
             end
         })
 

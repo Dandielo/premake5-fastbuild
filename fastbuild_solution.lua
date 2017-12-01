@@ -79,18 +79,20 @@
             local name = compiler.name 
             local system = compiler.system
             local architecture = compiler.architecture
+            local toolset = compiler.toolset
             local path = compiler.path
 
             assert(name, "The given compiler does not have a name?")
             assert(system, "Compiler %s does not have any target system defined!", name)
             assert(architecture, "Compiler %s does not have any architecture defined!", name)
+            assert(toolset, "Compiler %s does not any toolset defined!", name)
             assert(path, "Where can I find the given compiler? %s [%s]", name, platform)
 
             -- Include the compiler file and save it in the list
             fbuild.include(fbuild.path(wks, path))
 
             -- Save the system | architecture pair
-            local target_platform = system .. "|" .. architecture
+            local target_platform = system .. "|" .. architecture .. "|" .. toolset
             assert(not available_compilers[target_platform], "Compiler for target platform %s already exists", target_platform)
             available_compilers[target_platform] = true
         end)

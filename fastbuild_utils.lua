@@ -107,9 +107,9 @@
 --
 ---------------------------------------------------------------------------
 
-    function fbuild.targetName2(obj, cfg)
+    function fbuild.targetName2(obj, cfg, join)
         local name = obj.name or obj
-        return table.concat({ name, cfg.buildcfg, cfg.platform }, "-")
+        return table.concat({ name, cfg.buildcfg, cfg.platform }, iif(join, join, "-"))
     end
 
 --- 

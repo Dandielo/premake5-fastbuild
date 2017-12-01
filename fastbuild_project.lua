@@ -115,6 +115,7 @@
     m.elements.link = function(cfg, prj) 
         if cfg.kind == p.STATICLIB then
             return { 
+                m.additionalLinkOptions,
             }
         else 
             return { 
@@ -123,7 +124,8 @@
                 m.additionalDependencies,
                 m.additionalLibraryDirectories,
                 m.delayLoadDlls,
-                m.entryPointSymbol
+                m.entryPointSymbol,
+                m.additionalLinkOptions,
                 -- TODO?: /LARGEADDRESSAWARE /OPT:NOREF /OPT:NOICF /ERRORREPORT:PROMPT 
             }
         end
@@ -332,6 +334,27 @@
 
         m.cppDialect(cfg)
 
+        if #opts > 0 then
+
+            local found_opts = { }
+            local unique_opts = { } 
+            for _, opt in pairs(opts) do 
+                if not found_opts[opt] then 
+                    found_opts[opt] = true
+                    table.insert(unique_opts, opt)
+                end
+            end
+
+            table.sort(unique_opts, function(e1, e2) return e1 < e2 end)
+
+            for _, opt in pairs(unique_opts) do
+                m.element(opt)
+            end
+        end
+    end
+
+    function m.additionalLinkOptions(cfg)
+        local opts = cfg.linkoptions
         if #opts > 0 then
 
             local found_opts = { }
@@ -682,17 +705,66 @@
         extensions = { ".rc" },
         priority = 5,
 
+        inputField = "CompilerInputFiles",
+
         emitFiles = function(prj, group)
             local fileCfgFunc = {
                 m.excludedFromBuild
             }
 
-            -- m.emitFiles(prj, group, "ResourceCompile", nil, fileCfgFunc, function(cfg)
-            --     return cfg.system == p.WINDOWS
-            -- end)
+            return m.emitFiles(prj, group, "ResourceCompile", nil, nil, function(cfg)
+                return cfg.system == p.WINDOWS
+            end)
         end,
 
-        emitLibs = function(prj, group)
+        emitLibs = function(prj, group, mapped_files)
+            local content = {
+                m.emitObjectList2UsingConfig,
+                m.emitObjectList2UsingInputFiles(group.struct_name),
+                m.emitObjectList2Dependency,
+                m.emitObjectList2CompilerOutputPath,
+            }
+
+            local results = { 
+                function(prj, cfg, name) 
+                    p.x(".libs_%s + { '%s' }", fbuild.targetName2(prj, cfg, "_"), name)
+                end  
+            }
+
+            for cfg in project.eachconfig(prj) do
+                m.emitObjectList_2(prj, cfg, "rc", content, results, { })
+            end
+
+
+            -- local function scopedFunction(cfg)
+
+            --     for content, files in pairs(mapped_files.custom[cfg]) do 
+
+            --         local asm_object_list = {
+            --             m.objectListPreBuildDependency(".{prj}_{platform}_compile_dependencies", true),
+            --             m.objectListCompiler("$AssemblyExe$"),
+            --             m.objectListCompilerOutputPath,
+            --             m.objectListCompilerInputFilesRoot,
+            --             m.objectListCompilerOptions(' = \'/c /Cx /nologo /Fo"%2" "%1"\''),
+            --             m.objectListCompilerInputFiles
+            --         }
+
+            --         local function emitObjectListLib(data)
+            --             p.x("^libs_%s_%s + { '%s' }", data.prj.name, data.platform, data.name)
+            --         end
+
+            --         local lib = m.writeObjectList(prj, cfg, files, "asm", asm_object_list, { emitObjectListLib })
+
+            --     end
+
+            -- end
+
+            -- for cfg in project.eachconfig(prj) do
+            --     m.emitScope({ 
+            --         m.emitUsingCA(fbuild.targetPlatformStruct(cfg)),
+            --         scopedFunction,
+            --     }, {}, cfg)
+            -- end
         end,
 
         emitFilter = function(prj, group)
@@ -1050,9 +1122,11 @@
 
         if files and #files > 0 then
 
-            m.emitStruct(("%s_%s_files"):format(tag, prj.name), { emitInnerStruct }, nil, files)
-            prj.default_files = files
+            local struct_name = ("%s_%s_files"):format(tag, prj.name)
+            m.emitStruct(struct_name, { emitInnerStruct }, nil, files)
 
+            prj.default_files = files
+            group.struct_name = struct_name
         end
 
         group.pch_files = pch_files
@@ -1166,11 +1240,11 @@
         local platform = fastbuild.projectPlatform(cfg)
         local name = fastbuild.targetName(cfg, "objects", postfix)
 
-        m.emitFunction("ObjectList", name, inner, after, prj, cfg, ...)
+        m.emitFunction("ObjectList", name, inner, after, prj, cfg, name, ...)
         return name
     end
 
-    function m.emitObjectList2Dependency(prj, cfg, files)
+    function m.emitObjectList2Dependency(prj, cfg, name, files)
         p.x(".PreBuildDependencies = .%s", fastbuild.targetName(cfg, nil, "compile_dependencies"))
         if not files then 
             p.x(".PreBuildDependencies + .%s", fastbuild.targetName(cfg, nil, "prebuild_deps"))
@@ -1179,6 +1253,12 @@
 
     function m.emitObjectList2UsingConfig(prj, cfg)
         m.emitUsing(fastbuild.targetName(cfg, "config"))
+    end
+
+    function m.emitObjectList2UsingInputFiles(struct)
+        return function()
+            m.emitUsing(struct)
+        end
     end
 
     function m.emitObjectList2CompilerInputUnity(unity)

@@ -228,8 +228,15 @@
     end
     
     function m.additionalIncludeDirectories(cfg, includedirs)
+        local wks = cfg.workspace
+        if not wks then -- we got a fcfg
+            local prjcfg, fcfg = p.config.normalize(cfg)
+            wks = prjcfg.workspace
+            assert(fcfg)
+        end
+
         if #includedirs > 0 then
-            local dirs = fastbuild.path(cfg, includedirs)
+            local dirs = fbuild.path(wks, includedirs)
             if #dirs > 0 then
                 for _, dir in pairs(dirs) do 
                     m.element(('/I"%s"'):format(dir))
@@ -520,6 +527,7 @@
                 if fcfg then 
                     return {
                         m.clCompilePreprocessorDefinitions,
+                        m.clCompileAdditionalIncludeDirectories,
                         m.generatedFile,
                         m.precompiledHeader,
                         m.unityBuildDisabled

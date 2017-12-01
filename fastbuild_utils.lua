@@ -124,8 +124,15 @@
 -- Returns the fbuild name for the platform structure to be used for ObjectList and Library functions 
 --- 
     function fbuild.targetPlatformStruct(cfg)
+        return fbuild.targetPlatformCompilerStruct(cfg)
+    end
+
+---
+-- Returns the struct name for the given platforms additional defined compiler, additional compiler suffixes: res
+---
+    function fbuild.targetPlatformCompilerStruct(cfg, suffix)
         local config = cfg.config or cfg
-        return table.concat({ "platform", cfg.system, cfg.architecture, config.toolset }, "_")
+        return table.concat({ "platform", cfg.system, cfg.architecture, config.toolset, suffix }, "_")
     end
 
 

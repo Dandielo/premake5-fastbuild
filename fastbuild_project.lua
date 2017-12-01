@@ -493,7 +493,7 @@
 
     assert(not m.elements.compile)
 
-    m.elements.compile = function(prj, cfg, files)
+    m.elements.compile = function(prj, cfg, name, files)
         if prj.unity_builds then
             return { 
                 -- m.emitUnityFunction
@@ -635,6 +635,11 @@
                     local func_list = table.deepcopy(custom_compiler_object_list)
                     table.insertafter(func_list, m.objectListCompilerOutputPath, m.objectListCompilerOptions(content))
 
+                    if prj.unity_builds and #files > 0 and not files[1].flags.FBUnityBuildDisabled then
+                        local unity = m.emitUnityFunction(prj, cfg, "custom" .. num, m.elements.compile, nil, files)
+                        table.replace(func_list, m.objectListCompilerInputFiles, m.emitObjectList2CompilerInputUnity(unity))
+                    end
+
                     lib = m.writeObjectList(prj, cfg, files, "custom" .. num, func_list)
                     if lib then 
                         table.insert(libs, lib)
@@ -709,7 +714,6 @@
 
         emitFiles = function(prj, group)
             local fileCfgFunc = {
-                m.excludedFromBuild
             }
 
             return m.emitFiles(prj, group, "ResourceCompile", nil, nil, function(cfg)
@@ -718,8 +722,23 @@
         end,
 
         emitLibs = function(prj, group, mapped_files)
+            local function emitUsingResourceCompiler(prj, cfg)
+                m.emitUsing(fbuild.targetPlatformCompilerStruct(cfg, "res"))
+            end
+
+            local function emitAdditionalIncludeDirs(cfg)
+                return function()
+                    p.x(".CompilerOptions = ''")
+                    m.clCompileAdditionalIncludeDirectories(cfg)
+                    m.clCompilePreprocessorDefinitions(cfg)
+                    p.push()
+                    p.x("+ ' $ResCompilerOptions$'")
+                    p.pop()
+                end
+            end
+
             local content = {
-                m.emitObjectList2UsingConfig,
+                emitUsingResourceCompiler,
                 m.emitObjectList2UsingInputFiles(group.struct_name),
                 m.emitObjectList2Dependency,
                 m.emitObjectList2CompilerOutputPath,
@@ -732,39 +751,11 @@
             }
 
             for cfg in project.eachconfig(prj) do
-                m.emitObjectList_2(prj, cfg, "rc", content, results, { })
+                local content_copy = table.deepcopy(content)
+                table.insert(content_copy, emitAdditionalIncludeDirs(cfg))
+
+                m.emitObjectList_2(prj, cfg, "rc", content_copy, results, { })
             end
-
-
-            -- local function scopedFunction(cfg)
-
-            --     for content, files in pairs(mapped_files.custom[cfg]) do 
-
-            --         local asm_object_list = {
-            --             m.objectListPreBuildDependency(".{prj}_{platform}_compile_dependencies", true),
-            --             m.objectListCompiler("$AssemblyExe$"),
-            --             m.objectListCompilerOutputPath,
-            --             m.objectListCompilerInputFilesRoot,
-            --             m.objectListCompilerOptions(' = \'/c /Cx /nologo /Fo"%2" "%1"\''),
-            --             m.objectListCompilerInputFiles
-            --         }
-
-            --         local function emitObjectListLib(data)
-            --             p.x("^libs_%s_%s + { '%s' }", data.prj.name, data.platform, data.name)
-            --         end
-
-            --         local lib = m.writeObjectList(prj, cfg, files, "asm", asm_object_list, { emitObjectListLib })
-
-            --     end
-
-            -- end
-
-            -- for cfg in project.eachconfig(prj) do
-            --     m.emitScope({ 
-            --         m.emitUsingCA(fbuild.targetPlatformStruct(cfg)),
-            --         scopedFunction,
-            --     }, {}, cfg)
-            -- end
         end,
 
         emitFilter = function(prj, group)
@@ -1281,7 +1272,7 @@
         local platform = fastbuild.projectPlatform(cfg)
         local name = fastbuild.targetName(cfg, "unity", postfix)
 
-        m.emitFunction("Unity", name, inner, after, prj, cfg, ...)
+        m.emitFunction("Unity", name, inner, after, prj, cfg, name, ...)
         return name
     end
 
@@ -1291,7 +1282,8 @@
         p.x(".UnityInputFiles = %s", ".CompilerInputFiles")
     end
 
-    function m.emitUnitySpecificFiles(prj, cfg, files)
+    function m.emitUnitySpecificFiles(prj, cfg, name, files)
+        p.x(".UnityOutputPattern = '%s*.cpp'", name)
         p.x(".UnityNumFiles = %s", tostring(math.floor(#files / 40 + 1)))
         m.emitList("UnityInputFiles", { m.emitListItems }, nil, files, function(file)
             return fastbuild.path(prj, file.abspath)

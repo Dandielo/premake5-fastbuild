@@ -94,6 +94,7 @@
             -- Save the system | architecture pair
             local target_platform = system .. "|" .. architecture .. "|" .. toolset
             assert(not available_compilers[target_platform], "Compiler for target platform %s already exists", target_platform)
+            
             available_compilers[target_platform] = true
         end)
 

@@ -47,8 +47,6 @@
 ---
 
     function fastbuild.esc(value)
-        -- value = string.gsub(value, '&',  "&amp;")
-        -- value = value:gsub('"',  '^"')
         local vs_mappings = {
             VSInstallDir = "$VSBasePath$\\"
         }
@@ -57,13 +55,7 @@
             return vs_mappings[match] or ("$(%s)"):format(match)
         end)
         value = value:gsub("%$(%(.-%))",  "^$%1")
-
-        -- value = value:gsub("^^",  "^^^^")
-        -- value = value:gsub("'",  "&apos;")
-        -- value = value:gsub('<',  "&lt;")
-        -- value = value:gsub('>',  "&gt;")
-        -- value = value:gsub('\r', "&#x0D;")
-        -- value = value:gsub('\n', "&#x0A;")
+        
         return value
     end
 

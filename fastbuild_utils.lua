@@ -109,7 +109,7 @@
 
     function fbuild.targetName2(obj, cfg, join)
         local name = obj.name or obj
-        return table.concat({ name, cfg.buildcfg, cfg.platform }, iif(join, join, "-"))
+        return table.concat({ name, cfg.platform, cfg.buildcfg }, iif(join, join, "-"))
     end
 
 --- 
@@ -117,7 +117,7 @@
 ---
     function fbuild.targetPlatform(cfg)
         local config = cfg.config or cfg
-        return table.concat({ config.system, config.architecture, config.toolset }, "|")
+        return table.concat({ config.system, config.architecture, (config.toolset:gsub("%-", "_")) }, "|")
     end
 
 ---
@@ -132,7 +132,7 @@
 ---
     function fbuild.targetPlatformCompilerStruct(cfg, suffix)
         local config = cfg.config or cfg
-        return table.concat({ "platform", cfg.system, cfg.architecture, config.toolset, suffix }, "_")
+        return ((table.concat({ "platform", cfg.system, cfg.architecture, config.toolset, suffix }, "_")):gsub("%-", "_"))
     end
 
 

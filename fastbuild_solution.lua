@@ -23,11 +23,14 @@
 
     local m = p.fastbuild.fbsln
 
+
+
 ---
 -- Add namespace for element definition lists for p.callArray()
 ---
 
     m.elements = {}
+
 
 
 --
@@ -45,10 +48,12 @@
             m.allStructs,
             m.includeProjects,
             m.allTargets,
-            m.solutionVisualStudio
+            iif(_OPTIONS["fb-vstudio"], m.emitSolutionFunc, fbuild.fmap.pass)
         }
     end
     
+
+
 ---
 -- Define the FASTBuild solution generation function
 ---
@@ -57,16 +62,22 @@
         p.callArray(m.elements.workspace, wks)
     end
 
+
+
 ---
 -- Prints the workspace file header
 ---
+
     function m.header(wks) 
         f.section("FASTBuild Solution: %s", wks.name)
     end
 
+
+
 ---
 -- Tries to find the defined compiler file definitions and includes them to the workspace 
 ---
+
     function m.compilers(wks)
         p.x("\n// Available compilers ")
         p.x("//-----")
@@ -99,7 +110,7 @@
 
         -- Check if we have a compiler for each workspace configuration (these are required to be present)
         for config in workspace.eachconfig(wks) do
-            local target_platform = fbuild.targetPlatform(config)
+            local target_platform = fbuild.targetCompilerPlatform(config)
             local is_compiler_present = available_compilers[target_platform]
             assert(is_compiler_present, ("No compiler found for target platform %s!"):format(target_platform))
         end
@@ -108,9 +119,12 @@
         wks.compilers = available_compilers
     end
 
+
+
 ---
 -- Write settings info the solution file 
 ---
+
     m.elements.settings = function(wks)
         return {
             m.settingCachePath
@@ -132,9 +146,12 @@
         end
     end
 
+
+
 ---
 -- Emit 'All' structs which will hold all targets to be compiled when using an 'All' target
 ---
+
     function m.allStructs(wks)
         p.x("\n// All structures (used to create 'All' alliases)")
         p.x("//-----")
@@ -144,9 +161,12 @@
         end
     end
 
+
+
 ---
 -- Write out the list of projects and groups contained by the solution.
 ---
+
     function m.includeProjects(wks)
         p.x("\n// Included projects ")
         p.x("//-----")
@@ -171,105 +191,190 @@
         end
     end
 
+
+
 ---------------------------------------------------------------------------
 --
--- Visual studio project support 
+-- VSSolution function call 
 --
 ---------------------------------------------------------------------------
 
+    m.elements.vstudio_filters = function(wks)
+        return { 
+        }
+    end
 
     m.elements.vstudio = function(wks)
-        if not wks.vstudio_enabled then 
-            return { } 
-        end
-
         return { 
-            m.solutionVStudioConfigs,
-            m.solutionProjectFolders,
-            m.solutionAllProject,
-            m.solutionVStudioBegin,
-            m.solutionVStudioProjects,
-            m.solutionVStudioEnd,
+            m.solutionOutputLocation,
+            m.solutionBuildProject,
+            m.solutionProjects,
+            m.solutionDependencies,
         } 
     end
 
-    function m.solutionProjectFolders(wks)
-        p.x(".%s_SolutionFolders = { }", wks.name)
-        -- wks.fbuild.projects:for_each_group(function(group, prjs)
-        --     p.push(".%sFolder_%s = [", wks.name, group)
-        --     p.x(".Path = '%s'", group)
-        --     p.push(".Projects = {")
-        --     for _, prj in pairs(prjs) do 
-        --         p.x("'%s_vcxproj', ", prj)
-        --     end
-        --     p.pop("}")
-        --     p.pop("]")
-        --     p.x(".%s_SolutionFolders + .%sFolder_%s", wks.name, wks.name, group)
-        -- end)
+---
+-- Emits an additional "All" project which is used to build executable project with the f5 key, however it will always perform a full solution build
+--- 
+
+    function m.emitAllProject(wks)
+        local function emitValue(name, value, fmap, ...)
+            return fbuild.call(fbuild.emitStructValue, name, value:format(...), false, fmap)
+        end
+
+        fbuild.emitFunction("VCXProject", fbuild._targetName("All", nil, "vcxproj"), { 
+            emitValue("ProjectOutput", "..\\build\\fastbuild\\All.vcxproj", fbuild.fmap.quote),
+            emitValue("ProjectConfigs", ".SolutionConfigs"),
+            emitValue("ProjectBuildCommand", "cd \"$(SolutionDir)\" &amp; fbuild -config %s.wks.bff -ide -monitor -dist -cache all-$(Platform)-$(Configuration)", fbuild.fmap.quote, wks.name),
+            emitValue("ProjectRebuildCommand", "cd \"$(SolutionDir)\" &amp; fbuild -config %s.wks.bff -ide -monitor -dist -cache -clean all-$(Platform)-$(Configuration)", fbuild.fmap.quote, wks.name),
+            emitValue("ProjectCleanCommand", "cd \"$(SolutionDir)\" &amp; fbuild -config %s.wks.bff -ide -monitor -dist -cache -clean", fbuild.fmap.quote, wks.name),
+        })
+
+        -- p.x(".ProjectConfigs = .%sSolutionConfigs", wks.name)
     end
 
-    function m.solutionVisualStudio(wks)
+
+
+---
+-- Emits the VSSolution function call which allows to create a FASTBuild compatible solution
+---
+
+    function m.emitSolutionFunc(wks)
+        p.x("\n// VSSolution definiton ")
+        p.x("//-----")
+
+        m.emitSolutionConfigs(wks)
+        m.emitAllProject(wks)
+        fbuild.emitFunction("VSSolution", fbuild._targetName(wks, nil, "sln"), m.elements.vstudio, nil, wks)
+    end
+
+
+
+---
+-- Emits the solution output location
+--- 
+    
+    function m.solutionOutputLocation(wks)
+        local filename = wks.name .. "_fb.sln"
+
+        -- Emit the struct value 
+        fbuild.emitStructValue("SolutionOutput", filename, false, fbuild.fmap.quote)
+    end
+
+
+
+---
+-- Emits the solution active build projecty (f5 enabled project)
+--- 
+    
+    function m.solutionBuildProject(wks)
+        local buildprj = fbuild._targetName("All", nil, "vcxproj")
+
+        -- Emit the active build project (f5 enabled project)
+        fbuild.emitStructValue("SolutionBuildProject", buildprj, false, fbuild.fmap.quote)
+    end
+
+
+
+---
+-- Emits all projects which the solution should open
+--- 
+    
+    function m.solutionProjects(wks)
+        local function emitAllProject()
+            p.x("%s", fbuild.fmap.quote(fbuild._targetName("All", nil, "vcxproj")))
+        end
+
+        -- Emits all solution projects in dependent order 
+        fbuild.emitList("SolutionProjects", { fbuild.emitListItems, emitAllProject }, nil, dependency_resolver.allprojects(wks), function(prj)
+            local target_name = fbuild._targetName(prj.name, nil, "vcxproj")
+            return fbuild.fmap.quote(target_name)
+        end)
+    end
+
+
+
+---
+-- Emits dependency declartions across solution projects 
+--- 
+
+    function m.solutionDependencies(wks)
+        -- Helps to emit the list within the emited struct
+        local function emitExecutableProjectList(wks)
+            fbuild.emitList("Projects", { fbuild.emitListItems }, nil, dependency_resolver.allprojects(wks), function(prj)
+
+                -- Check it it's an 'App' project
+                if prj.kind == p.CONSOLEAPP or prj.kind == p.WINDOWEDAPP then
+                    local target_name = fbuild._targetName(prj.name, nil, "vcxproj")
+                    return fbuild.fmap.quote(target_name)
+                end
+            end)
+        end
+
+        -- Helps to emit the dependencies list of the given 'App' projects
+        local function emitExecutableDependencies(wks)
+            local all_target = fbuild._targetName("All", nil, "vcxproj")
+            fbuild.emitStructValue("Dependencies", { fbuild.fmap.quote(all_target) }, false, fbuild.fmap.list)
+        end
+
+        p.x("// Solution project dependencies")
+
+        -- First emit the structure which will define dependencies to the 'All' project (we care only about 'executable' kinds)
+        fbuild.emitStruct("MainSolutionDependency", { emitExecutableProjectList, emitExecutableDependencies }, { 
+            fbuild.call(fbuild.emitStructValue, "SolutionDependencies", { ".MainSolutionDependency" }, false, fbuild.fmap.list)
+        }, wks)
+    end
+
+
+
+---
+-- Emits the solution configurations 
+--- 
+
+    function m.emitSolutionConfigs(wks)
+        p.x("// List of all configurations")
+        fbuild.emitList("Configurations", { fbuild.emitListItems }, nil, wks.configurations, fbuild.fmap.quote)
+
+        p.x("// List of all platforms")
+        fbuild.emitList("Platforms", { fbuild.emitListItems }, nil, wks.platforms, fbuild.fmap.quote)
+
+        p.x("// The actual solution configuration list")
+        fbuild.emitStructValue("SolutionConfigs", "{ }")
         p.x("")
-        f.section("Visual Studio solution")
-        p.callArray(m.elements.vstudio, wks)
+
+        local call = fbuild.call
+        fbuild.emitForLoop("Platform", "Platforms", 
+        { 
+            call(fbuild.emitForLoop, "Config", "Configurations", 
+            { 
+                call(fbuild.emitStruct, "Configuration", { 
+                    call(fbuild.emitStructValue, "Platform", "$Platform$", false, fbuild.fmap.quote),
+                    call(fbuild.emitStructValue, "Config", "$Config$", false, fbuild.fmap.quote)
+                }),
+                call(fbuild.emitParentStructValue, "SolutionConfigs", ".Configuration")
+            })
+        })
     end
 
-    function m.solutionVStudioConfigs(wks)
-        p.x(".%sSolutionConfigs = { }", wks.name)
 
-        for cfg in workspace.eachconfig(wks) do
-            p.x("\n// VisualStudio Config: %s|%s", cfg.platform, cfg.buildcfg)
-            p.push(".%s_%s_SolutionConfig = [", wks.name, fastbuild.solutionConfig(cfg))
-            p.x(".Platform = '%s'", cfg.platform)
-            p.x(".Config = '%s'", cfg.buildcfg)
-            p.pop("]")
-            p.x(".%sSolutionConfigs + .%s_%s_SolutionConfig\n", wks.name, wks.name, fastbuild.solutionConfig(cfg))
-        end
-    end
 
-    function m.solutionAllProject(wks)
-        p.x("VCXProject( 'all_vcxproj' )")
-        p.push("{")
-        p.x(".ProjectOutput = '..\\build\\fastbuild\\All.vcxproj'", fastbuild.path(wks, wks.location))
-        p.x(".ProjectConfigs = .%sSolutionConfigs", wks.name)
-        p.x(".ProjectBuildCommand = 'cd \"^$(SolutionDir)\" &amp; fbuild -config %s.wks.bff -ide -monitor -dist -cache all-^$(Platform)-^$(Configuration)'", wks.filename)
-        p.x(".ProjectRebuildCommand = 'cd \"^$(SolutionDir)\" &amp; fbuild -config %s.wks.bff -ide -monitor -dist -cache -clean all-^$(Platform)-^$(Configuration)'", wks.filename)
-        p.x(".ProjectCleanCommand = 'cd \"^$(SolutionDir)\" &amp; fbuild -config %s.wks.bff -ide -monitor -dist -cache -clean'", wks.filename)
-        p.pop("}")
-    end
 
-    function m.solutionVStudioBegin(wks)
-        p.x("VSSolution( '%s_sln' )", wks.name)
-        p.push("{")
-        p.x(".SolutionOutput = '%s\\%s_fb.sln'", fastbuild.path(wks, wks.location), wks.name)
-        p.x(".SolutionConfigs = .%sSolutionConfigs", wks.name)
-        p.x(".SolutionBuildProject = 'all_vcxproj'")
-        -- p.x(".SolutionFolders = .%s_SolutionFolders", wks.name)
 
-        p.push(".execDeps = [")
-        p.push(".Projects = {")
-        for prj in workspace.eachproject(wks) do 
-            if prj.kind == p.CONSOLEAPP then 
-                p.x("'%s_vcxproj',", prj.name)
-            end
-        end
-        p.pop("}")
-        p.x(".Dependencies = { 'all_vcxproj' }")
-        p.pop("]")
 
-        p.x(".SolutionDependencies = { .execDeps }")
-    end
 
-    function m.solutionVStudioProjects(wks)
-        p.push(".SolutionProjects = {")
-        -- wks.fbuild.projects:for_each(function(prj)
-        --     p.x("'%s_vcxproj',", prj.name)
-        -- end)
-        p.x("'all_vcxproj',")
-        p.pop("}")
-        -- body
-    end
 
-    function m.solutionVStudioEnd(wks)
-        p.pop("}")
-    end
+
+    -- function m.solutionProjectFolders(wks)
+    --     -- p.x(".%s_SolutionFolders = { }", wks.name)
+    --     -- wks.fbuild.projects:for_each_group(function(group, prjs)
+    --     --     p.push(".%sFolder_%s = [", wks.name, group)
+    --     --     p.x(".Path = '%s'", group)
+    --     --     p.push(".Projects = {")
+    --     --     for _, prj in pairs(prjs) do 
+    --     --         p.x("'%s_vcxproj', ", prj)
+    --     --     end
+    --     --     p.pop("}")
+    --     --     p.pop("]")
+    --     --     p.x(".%s_SolutionFolders + .%sFolder_%s", wks.name, wks.name, group)
+    --     -- end)
+    -- end

@@ -315,7 +315,9 @@
             StaticDebug   = "/MTd",
             StaticRelease = "/MT",
             StaticDLLDebug = "/MDd",
-            StaticDLLRelease = "/MD"
+            StaticDLLRelease = "/MD",
+            SharedDebug = "/MDd",
+            SharedRelease = "/MD"
         }
         local runtime = runtimes[config.getruntime(cfg)] or "/MDd"
         if runtime then

@@ -510,6 +510,8 @@
                 m.emitUnityOutputPath,
                 m.emitUnityPCHFile,
                 m.emitUnityCompileDependency,
+                m.emitUnityIsolateWritableFiles,
+                m.emitUnityIsolateWritableFilesLimit,
             }
         else
             return { 
@@ -1308,6 +1310,18 @@
         p.x(".UnityOutputPath = '%s\\fb_unity'", fastbuild.path(cfg, cfg.objdir))
     end
 
+    function m.emitUnityIsolateWritableFiles(prj, cfg)
+        if prj.fbunity and prj.fbunity.isolate_writable_files then
+            fbuild.emitStructValue("UnityInputIsolateWritableFiles", true);
+        end
+    end
+
+    function m.emitUnityIsolateWritableFilesLimit(prj, cfg)
+        if prj.fbunity and prj.fbunity.isolate_writable_files and prj.fbunity.isolate_writable_files_limit then
+            fbuild.emitStructValue("UnityInputIsolateWritableFilesLimit", prj.fbunity.isolate_writable_files_limit);
+        end
+    end
+ 
     function m.emitUnityPCHFile(prj, cfg)
         if cfg.pchheader and not cfg.flags.NoPCH then 
             p.x(".UnityPCH = '%s'", cfg.pchheader)

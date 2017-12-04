@@ -28,6 +28,12 @@ p.api.register {
     kind = "list:keyed:string",
 }
 
+p.api.register { 
+    name = "fbunity",
+    scope = "global",
+    kind = "keyed:mixed"
+}
+
 newoption { 
     trigger     = "fb-vstudio",
     description = "Adds tools projects to the solution"

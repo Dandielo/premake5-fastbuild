@@ -51,6 +51,10 @@
             VSInstallDir = "$VSBasePath$\\"
         }
 
+        if type(value) ~= "string" then 
+            return value
+        end
+
         value = value:gsub("%$%((.-)%)", function(match)
             return vs_mappings[match] or ("$(%s)"):format(match)
         end)

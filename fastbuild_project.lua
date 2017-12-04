@@ -52,7 +52,8 @@
             m.configurations,
             m.files,
             m.projectBinary,
-            m.projectVisualStudio
+            m.projectVisualStudio,
+            m.projectAliases,
         }
     end
 
@@ -1698,3 +1699,21 @@
             m.element(('/ENTRY:"%s"'):format(cfg.entrypoint), "Entry point for the application to be used: %s", cfg.entrypoint)
         end
     end
+
+    function m.projectAliases(prj)
+        for _, platform in ipairs(prj.platforms) do 
+            for _, mapping in ipairs(prj.configmap) do
+
+                for name, configs in pairs(mapping) do 
+                    local config = project.getconfig(prj, configs[1], platform)
+                    assert(config ~= nil, ("Invalid comfig mapping for '%s'"):format(name))
+
+                    fbuild.emitAlias(fbuild.projectTargetname(prj, { project = prj, buildcfg = name, platform = platform }), { 
+                        fbuild.fmap.quote(fbuild.projectTargetname(prj, config))
+                    })
+                end
+
+            end
+        end
+    end
+

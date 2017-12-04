@@ -240,8 +240,8 @@
         fmap = iif(fmap, fmap, function(e) return e end)
 
         fbuild.emitFunction("Alias", name, { 
-            call(fbuild.emitList, "Targets", {
-                call(fbuild.emitListItems, targets, fmap)
+            fbuild.call(fbuild.emitList, "Targets", {
+                fbuild.call(fbuild.emitListItems, targets, fmap)
             })
         })
     end

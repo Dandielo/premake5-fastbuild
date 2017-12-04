@@ -131,7 +131,7 @@
 
     local function generatedNameConfig(separator, cfg, prefix, suffix)
         cfg = cfg.config or cfg
-        return table.concat(filterempty({ prefix, cfg.platform, cfg.buildcfg, suffix }), separator)
+        return table.concat(filterempty{ prefix, cfg.platform, cfg.buildcfg, suffix }, separator)
     end
 
 
@@ -142,7 +142,7 @@
 
     local function generatedNameProject(separator, prj, prefix, suffix)
         prj = prj.project or prj
-        return table.concat(filterempty({ prefix, iif(prj.name, prj.name, prj), suffix }), separator)
+        return table.concat(filterempty{ prefix, iif(prj.name, prj.name, prj), suffix }, separator)
     end
 
 
@@ -189,7 +189,7 @@
 
     function fbuild.targetPlatform(cfg)
         local config = cfg.config or cfg
-        return table.concat({ config.system, config.architecture }, "|")
+        return table.concat(filterempty{ config.system, config.architecture }, "|")
     end
 
 
@@ -200,7 +200,7 @@
 
     function fbuild.targetCompilerPlatform(cfg)
         local config = cfg.config or cfg
-        return table.concat({ config.system, config.architecture, (config.toolset:gsub("%-", "_")) }, "|")
+        return table.concat(filterempty{ config.system, config.architecture, (config.toolset:gsub("%-", "_")) }, "|")
     end
 
 
@@ -211,7 +211,7 @@
 
     function fbuild.targetCompilerPlatformStruct(cfg, suffix)
         local config = cfg.config or cfg
-        return ((table.concat({ "platform", config.system, config.architecture, config.toolset, suffix }, "_")):gsub("%-", "_"))
+        return ((table.concat(filterempty{ "platform", config.system, config.architecture, config.toolset, suffix }, "_")):gsub("%-", "_"))
     end
 
 

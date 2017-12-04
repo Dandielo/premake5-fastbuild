@@ -733,7 +733,7 @@
 
         emitLibs = function(prj, group, mapped_files)
             local function emitUsingResourceCompiler(prj, cfg)
-                m.emitUsing(fbuild.targetPlatformCompilerStruct(cfg, "res"))
+                m.emitUsing(fbuild.targetCompilerPlatformStruct(cfg, "res"))
             end
 
             local function emitAdditionalIncludeDirs(cfg)
@@ -756,7 +756,7 @@
 
             local results = { 
                 function(prj, cfg, name) 
-                    p.x(".libs_%s + { '%s' }", fbuild.targetName2(prj, cfg, "_"), name)
+                    p.x(".libs_%s_%s + { '%s' }", prj.name, fastbuild.projectPlatform(cfg), name)
                 end  
             }
 
@@ -845,7 +845,7 @@
 
             for cfg in project.eachconfig(prj) do
                 m.emitScope({ 
-                    m.emitUsingCA(fbuild.targetPlatformStruct(cfg)),
+                    m.emitUsingCA(fbuild.targetCompilerPlatformStruct(cfg)),
                     scopedFunction,
                 }, {}, cfg)
             end

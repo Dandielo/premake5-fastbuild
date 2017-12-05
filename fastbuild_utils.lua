@@ -142,7 +142,8 @@
 
     local function generatedNameConfig(separator, cfg, prefix, suffix)
         cfg = cfg.config or cfg
-        return table.concat(filterempty{ prefix, cfg.platform, cfg.buildcfg, suffix }, separator)
+        local prj = cfg.project
+        return table.concat(filterempty{ prefix, prj.name, cfg.platform, cfg.buildcfg, suffix }, separator)
     end
 
 

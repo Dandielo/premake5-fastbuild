@@ -34,6 +34,13 @@ p.api.register {
     kind = "keyed:mixed"
 }
 
+p.api.register { 
+    name = "fbprebuildcommands",
+    scope = "config",
+    kind = "list:keyed:string",
+    tokens = true
+}
+
 newoption { 
     trigger     = "fb-vstudio",
     description = "Adds tools projects to the solution"

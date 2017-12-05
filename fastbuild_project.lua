@@ -50,6 +50,7 @@
         return { 
             m.header,
             m.configurations,
+            m.buildStepCommands,
             m.files,
             m.projectBinary,
             m.projectAliases,
@@ -427,9 +428,82 @@
         end
     end
 
----
--- Files 
---- 
+
+---------------------------------------------------------------------------
+--
+-- Build step commands (pre-build, pre-link, post-build)
+--
+---------------------------------------------------------------------------
+
+    m.elements.buildsteps = function(cfg)
+        return { 
+            m.preBuildCommands,
+            m.preLinkCommands,
+            m.postBuildCommands
+        }
+    end
+
+    function m.buildStepCommands(prj)
+        local n = 0
+        for cfg in project.eachconfig(prj) do 
+            n = n + 1
+            p.callArray(m.elements.buildsteps, tostring(n), cfg, prj)
+        end
+
+        p.callArray(m.elements.buildsteps, "prj", prj)
+    end
+
+    function m.preBuildCommands(nth, cfg, prj)
+        local prj_cmds = { }
+        if prj then
+            for _, cmd in ipairs(prj.fbprebuildcommands) do 
+                prj_cmds[cmd.output] = true
+            end
+        end
+
+        for _, cmd in ipairs(cfg.fbprebuildcommands) do 
+            if not prj_cmds[cmd.output] then 
+                m.emitExecFunctionCall("prebuild_" .. nth, cfg, cmd)
+            end
+        end
+    end
+
+    m.elements.exec = function(cfg, cmds)
+        return { 
+            m.emitExecExecutable,
+            m.emitExecArguments,
+            m.emitExecInput,
+            m.emitExecOutput,
+        }
+    end
+
+    function m.emitExecFunctionCall(type, cfg, cmd)
+        fbuild.emitFunction("Exec", fbuild._targetName(cfg, type, "exec"), m.elements.exec, nil, cfg, cmd)
+    end
+
+    function m.emitExecExecutable(cfg, cmd)
+        fbuild.emitStructValue("ExecExecutable", cmd.executable, false, fbuild.fmap.quote)
+    end
+
+    function m.emitExecArguments(cfg, cmd)
+        fbuild.emitStructValue("ExecArguments", cmd.arguments, false, fbuild.fmap.quote)
+    end
+
+    function m.emitExecOutput(cfg, cmd) 
+        fbuild.emitStructValue("ExecOutput", cmd.output, false, fbuild.fmap.quote)
+    end
+
+    function m.emitExecInput(cfg, cmd) 
+        fbuild.emitStructValue("ExecInput", cmd.input, false, fbuild.fmap.quote)
+    end
+
+
+---------------------------------------------------------------------------
+--
+-- Files
+--
+---------------------------------------------------------------------------
+
     function m.files(prj) 
         local groups = m.categorizeSources(prj)
         for _, group in ipairs(groups) do
@@ -1591,7 +1665,7 @@
     function m.projectVStudioBegin(prj)
         p.x("VCXProject( '%s' )", fbuild._targetName(prj, nil, "vcxproj"))
         p.push("{")
-        p.x(".ProjectOutput = '%s\\%s.vcxproj'", fastbuild.path(prj, prj.location), prj.name)
+        p.x(".ProjectOutput = '%s\\%s.vcxproj'", fastbuild.path(prj, prj.location), prj.filename)
         p.x(".ProjectConfigs = .%sProjectConfigs", prj.name)
     end
 

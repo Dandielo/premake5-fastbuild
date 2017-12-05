@@ -42,6 +42,7 @@
         return { 
             -- General 
             m.header,
+            m.globals,
             m.settings,
             m.compilers,
             -- Projects 
@@ -119,6 +120,22 @@
         wks.compilers = available_compilers
     end
 
+
+---
+-- Write global values info the solution file 
+---
+    
+    m.elements.globals = function(wks)
+        return { 
+            fbuild.call(fbuild.emitStructValue, "WorkspaceLocation", wks.location, false, fbuild.fmap.quote)
+        }
+    end
+
+    function m.globals(wks)
+        p.x("\n// FASTBuild global values ")
+        p.x("//-----")  
+        p.callArray(m.elements.globals, wks)
+    end
 
 
 ---

@@ -48,7 +48,9 @@
 
     function fastbuild.esc(value)
         local vs_mappings = {
-            VSInstallDir = "$VSBasePath$\\"
+            VSInstallDir = "$VSBasePath$\\",
+            VsInstallRoot = "$VSBasePath$\\",
+            SolutionDir = "$WorkspaceLocation$"
         }
 
         if type(value) ~= "string" then 

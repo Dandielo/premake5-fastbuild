@@ -102,6 +102,17 @@
         end
     end
 
+    function fbuild.checkCompilers(prj)
+        local wks = prj.workspace
+        local configs_have_compilers = true
+
+        for cfg in p.project.eachconfig(prj) do 
+            configs_have_compilers = configs_have_compilers and wks.compilers[fbuild.targetCompilerPlatform(cfg)] ~= nil
+        end
+
+        return configs_have_compilers
+    end
+
 
 
 ---------------------------------------------------------------------------

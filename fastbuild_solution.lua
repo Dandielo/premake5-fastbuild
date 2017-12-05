@@ -225,9 +225,9 @@
         fbuild.emitFunction("VCXProject", fbuild._targetName("All", nil, "vcxproj"), { 
             emitValue("ProjectOutput", "..\\build\\fastbuild\\All.vcxproj", fbuild.fmap.quote),
             emitValue("ProjectConfigs", ".SolutionConfigs"),
-            emitValue("ProjectBuildCommand", "cd \"$(SolutionDir)\" &amp; fbuild -config %s.wks.bff -ide -monitor -dist -cache all-$(Platform)-$(Configuration)", fbuild.fmap.quote, wks.name),
-            emitValue("ProjectRebuildCommand", "cd \"$(SolutionDir)\" &amp; fbuild -config %s.wks.bff -ide -monitor -dist -cache -clean all-$(Platform)-$(Configuration)", fbuild.fmap.quote, wks.name),
-            emitValue("ProjectCleanCommand", "cd \"$(SolutionDir)\" &amp; fbuild -config %s.wks.bff -ide -monitor -dist -cache -clean", fbuild.fmap.quote, wks.name),
+            emitValue("ProjectBuildCommand", "cd \"$(SolutionDir)\" &amp; fbuild -config %s.wks.bff -ide -monitor -dist -cache all-$(Platform)-$(Configuration)", fbuild.fmap.quote, wks.filename),
+            emitValue("ProjectRebuildCommand", "cd \"$(SolutionDir)\" &amp; fbuild -config %s.wks.bff -ide -monitor -dist -cache -clean all-$(Platform)-$(Configuration)", fbuild.fmap.quote, wks.filename),
+            emitValue("ProjectCleanCommand", "cd \"$(SolutionDir)\" &amp; fbuild -config %s.wks.bff -ide -monitor -dist -cache -clean", fbuild.fmap.quote, wks.filename),
         })
 
         -- p.x(".ProjectConfigs = .%sSolutionConfigs", wks.name)
@@ -287,8 +287,10 @@
 
         -- Emits all solution projects in dependent order 
         fbuild.emitList("SolutionProjects", { fbuild.emitListItems, emitAllProject }, nil, dependency_resolver.allprojects(wks), function(prj)
-            local target_name = fbuild._targetName(prj.name, nil, "vcxproj")
-            return fbuild.fmap.quote(target_name)
+            if fbuild.checkCompilers(prj) then 
+                local target_name = fbuild._targetName(prj.name, nil, "vcxproj")
+                return fbuild.fmap.quote(target_name)
+            end
         end)
     end
 

@@ -52,8 +52,8 @@
             m.configurations,
             m.files,
             m.projectBinary,
-            m.projectVisualStudio,
             m.projectAliases,
+            m.projectVisualStudio,
         }
     end
 
@@ -1541,28 +1541,47 @@
         p.callArray(m.elements.vstudio, prj)
     end
 
+    function m.projectVStudioConfig(prj, cfg)
+        p.x("\n// VisualStudio Config: %s", fbuild.projectPlatform(cfg, "|"))
+        p.push(".%s_%s_SolutionConfig = [", prj.name, fbuild.projectPlatform(cfg))
+        p.x(".Platform = '%s'", cfg.platform or "Win32")
+        p.x(".Config = '%s'", cfg.buildcfg)
+        if not prj.fbuild.notarget then
+            p.x(".Target = '%s'", fbuild.projectTargetname(prj, cfg))
+            p.x(".Output = '%s'", path.translate(cfg.linktarget.abspath))
+
+            -- local out_dir = 
+            p.x(".OutputDirectory = '%s'", path.translate(cfg.linktarget.directory))
+            p.x(".LocalDebuggerWorkingDirectory = '^$(OutDir)'")
+            p.push(".AdditionalOptions = ''")
+            p.callArray({ m.cppDialect }, cfg)
+            p.pop()
+        end
+        p.pop("]")
+        p.x(".%sProjectConfigs + .%s_%s_SolutionConfig\n", prj.name, prj.name, fastbuild.projectPlatform(cfg))
+    end
+
     function m.projectVStudioConfigs(prj)
         p.x(".%sProjectConfigs = { }", prj.name)
 
         for cfg in project.eachconfig(prj) do
-            p.x("\n// VisualStudio Config: %s", fastbuild.projectPlatform(cfg, "|"))
-            p.push(".%s_%s_SolutionConfig = [", prj.name, fastbuild.projectPlatform(cfg))
-            p.x(".Platform = '%s'", cfg.platform or "Win32")
-            p.x(".Config = '%s'", cfg.buildcfg)
-            if not prj.fbuild.notarget then
-                p.x(".Target = '%s'", fastbuild.projectTargetname(prj, cfg))
-                p.x(".Output = '%s'", path.translate(cfg.linktarget.abspath))
-
-                -- local out_dir = 
-                p.x(".OutputDirectory = '%s'", path.translate(cfg.linktarget.directory))
-                p.x(".LocalDebuggerWorkingDirectory = '^$(OutDir)'")
-                p.push(".AdditionalOptions = ''")
-                p.callArray({ m.cppDialect }, cfg)
-                p.pop()
-            end
-            p.pop("]")
-            p.x(".%sProjectConfigs + .%s_%s_SolutionConfig\n", prj.name, prj.name, fastbuild.projectPlatform(cfg))
+            m.projectVStudioConfig(prj, cfg)
         end
+
+        -- Create mocks for configmaps 
+        for _, platform in ipairs(prj.platforms) do 
+            for _, mapping in ipairs(prj.configmap) do
+
+                for name, configs in pairs(mapping) do 
+                    local config = project.getconfig(prj, configs[1], platform)
+                    assert(config ~= nil, ("Invalid comfig mapping for '%s'"):format(name))
+
+                    m.projectVStudioConfig(prj, { project = prj, buildcfg = name, platform = platform, linktarget = config.linktarget })
+                end
+
+            end
+        end
+
     end
 
     function m.projectVStudioFilters(prj)

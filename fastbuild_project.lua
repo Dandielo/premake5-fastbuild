@@ -1548,10 +1548,10 @@
         p.x(".Config = '%s'", cfg.buildcfg)
         if not prj.fbuild.notarget then
             p.x(".Target = '%s'", fbuild.projectTargetname(prj, cfg))
-            p.x(".Output = '%s'", path.translate(cfg.linktarget.abspath))
+            p.x(".Output = '%s'", path.translate(cfg.buildtarget.abspath))
 
             -- local out_dir = 
-            p.x(".OutputDirectory = '%s'", path.translate(cfg.linktarget.directory))
+            p.x(".OutputDirectory = '%s'", path.translate(cfg.buildtarget.directory))
             p.x(".LocalDebuggerWorkingDirectory = '^$(OutDir)'")
             p.push(".AdditionalOptions = ''")
             p.callArray({ m.cppDialect }, cfg)
@@ -1576,7 +1576,7 @@
                     local config = project.getconfig(prj, configs[1], platform)
                     assert(config ~= nil, ("Invalid comfig mapping for '%s'"):format(name))
 
-                    m.projectVStudioConfig(prj, { project = prj, buildcfg = name, platform = platform, linktarget = config.linktarget })
+                    m.projectVStudioConfig(prj, { project = prj, buildcfg = name, platform = platform, buildtarget = config.buildtarget })
                 end
 
             end

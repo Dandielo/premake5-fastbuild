@@ -478,7 +478,10 @@
     end
 
     function m.emitExecFunctionCall(type, cfg, cmd)
-        fbuild.emitFunction("Exec", fbuild._targetName(cfg, type, "exec"), m.elements.exec, nil, cfg, cmd)
+        local exec_target = fbuild._targetName(cfg, type, "exec")
+        fbuild.emitFunction("Exec", exec_target, m.elements.exec, nil, cfg, cmd)
+        m.emitExecAddToCompileDependencies(cfg, cmd, exec_target)
+        p.x("")
     end
 
     function m.emitExecExecutable(cfg, cmd)
@@ -495,6 +498,17 @@
 
     function m.emitExecInput(cfg, cmd) 
         fbuild.emitStructValue("ExecInput", cmd.input, false, fbuild.fmap.quote)
+    end
+
+    function m.emitExecAddToCompileDependencies(cfg, cmd, exec_target)
+        local prj = cfg.project or cfg
+        if not cfg.project then
+            p.x(".%s_%s_compile_dependencies + '%s'", prj.name, fastbuild.projectPlatform(cfg), exec_target)
+        else
+            for cfg in project.eachconfig(prj) do 
+                p.x(".%s_%s_compile_dependencies + '%s'", prj.name, fastbuild.projectPlatform(cfg), exec_target)
+            end
+        end
     end
 
 

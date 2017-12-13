@@ -1,22 +1,22 @@
 --
 -- actions/fastbuild/fastbuild.lua
 -- Extend the existing exporters with support for FASTBuild
--- Copyright (c) 2017-2017 Daniel Penkała 
+-- Copyright (c) 2017-2017 Daniel Penkała
 --
 
     local p = premake
     local fastbuild = p.fastbuild
 
 ---
--- Define a helper command that will hold available platforms 
---- 
+-- Define a helper command that will hold available platforms
+---
 p.api.register {
     name = "fbcompiler",
     scope = "workspace",
     kind = "string"
 }
 
-p.api.register { 
+p.api.register {
     name = "fbunitymaxfiles",
     scope = "project",
     kind = "number"
@@ -28,20 +28,26 @@ p.api.register {
     kind = "list:keyed:string",
 }
 
-p.api.register { 
+p.api.register {
     name = "fbunity",
     scope = "global",
     kind = "keyed:mixed"
 }
 
-p.api.register { 
+p.api.register {
+    name = "fbtag",
+    scope = "config",
+    kind = "string"
+}
+
+p.api.register {
     name = "fbprebuildcommands",
     scope = "config",
     kind = "list:keyed:string",
     tokens = true
 }
 
-newoption { 
+newoption {
     trigger     = "fb-vstudio",
     description = "Adds tools projects to the solution"
 }
@@ -77,7 +83,7 @@ p.api.addAllowed("flags", "FBUnityBuildDisabled")
 
         -- Workspace and project generation logic
         onWorkspace = function(wks)
-            if _OPTIONS['fb-vstudio'] then 
+            if _OPTIONS['fb-vstudio'] then
                 wks.vstudio_enabled = true
             end
 
@@ -86,7 +92,7 @@ p.api.addAllowed("flags", "FBUnityBuildDisabled")
         end,
 
         onProject = function(prj)
-            if _OPTIONS['fb-vstudio'] then 
+            if _OPTIONS['fb-vstudio'] then
                 prj.vstudio_enabled = true
             end
 
@@ -111,4 +117,4 @@ p.api.addAllowed("flags", "FBUnityBuildDisabled")
         end,
 
     }
-    
+

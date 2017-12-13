@@ -1,7 +1,7 @@
 --
 -- actions/fastbuild/fastbuild.lua
 -- Extend the existing exporters with support for FASTBuild
--- Copyright (c) 2017-2017 Daniel Penkała 
+-- Copyright (c) 2017-2017 Daniel Penkała
 --
 
     local p = premake
@@ -20,8 +20,8 @@
     local m = p.fastbuild.fbprj
 
 
---- 
--- Helper function to output values 
+---
+-- Helper function to output values
 ---
 
     m.element = function(value, info, ...)
@@ -30,7 +30,7 @@
                 info = info:format(...)
             end
             fastbuild.struct_pair_append("' %s' // %s", value, info)
-        else 
+        else
             fastbuild.struct_pair_append("' %s'", value)
         end
     end
@@ -46,8 +46,8 @@
 -- Generate a Fastbuild project, with support for the new platforms API.
 --
 
-    m.elements.project = function(prj) 
-        return { 
+    m.elements.project = function(prj)
+        return {
             m.header,
             m.configurations,
             m.buildStepCommands,
@@ -62,17 +62,17 @@
         local wks = prj.workspace
         local configs_have_compilers = true
 
-        for cfg in project.eachconfig(prj) do 
+        for cfg in project.eachconfig(prj) do
             configs_have_compilers = configs_have_compilers and wks.compilers[fbuild.targetCompilerPlatform(cfg)] ~= nil
         end
 
         return configs_have_compilers
     end
-    
+
     function m.generate(prj)
         prj.unity_builds = _OPTIONS['fb-unity-builds'] ~= nil and prj.flags.FBUnityBuild
 
-        local has = hasToolchain(prj) 
+        local has = hasToolchain(prj)
         if has then
             p.callArray(m.elements.project, prj)
         end
@@ -95,10 +95,10 @@
 
 ---
 -- Configurations
---- 
+---
 
-    m.elements.clCompile = function(cfg, prj) 
-        return { 
+    m.elements.clCompile = function(cfg, prj)
+        return {
             m.warningLevel,
             m.treatWarningAsError,
             m.debugInformationFormat,
@@ -114,13 +114,13 @@
         }
     end
 
-    m.elements.link = function(cfg, prj) 
+    m.elements.link = function(cfg, prj)
         if cfg.kind == p.STATICLIB then
-            return { 
+            return {
                 m.additionalLinkOptions,
             }
-        else 
-            return { 
+        else
+            return {
                 m.generateDebugInformation,
                 m.linkIncremental,
                 m.additionalDependencies,
@@ -128,7 +128,7 @@
                 m.delayLoadDlls,
                 m.entryPointSymbol,
                 m.additionalLinkOptions,
-                -- TODO?: /LARGEADDRESSAWARE /OPT:NOREF /OPT:NOICF /ERRORREPORT:PROMPT 
+                -- TODO?: /LARGEADDRESSAWARE /OPT:NOREF /OPT:NOICF /ERRORREPORT:PROMPT
             }
         end
     end
@@ -139,7 +139,7 @@
         local link_deps = { }
         for _, ref in pairs(project.getdependencies(prj, "linkOnly")) do
             link_deps[ref.name] = true
-        end  
+        end
 
         for cfg in project.eachconfig(prj) do
             p.push(".%s_%s_prebuild_deps = {", prj.name, fastbuild.projectPlatform(cfg))
@@ -164,11 +164,11 @@
             p.callArray(m.elements.clCompile, cfg, prj)
             p.w()
 
-            -- Linker options 
+            -- Linker options
             if cfg.kind == p.STATICLIB then
                 p.x(".LibrarianOptions + ''")
                 p.callArray(m.elements.link , cfg, prj)
-            else 
+            else
                 p.x(".LinkerOptions + ''")
                 p.callArray(m.elements.link , cfg, prj)
             end
@@ -176,7 +176,7 @@
             f.struct_end()
         end
 
-        for cfg in project.eachconfig(prj) do 
+        for cfg in project.eachconfig(prj) do
             p.x(".%s_%s_compile_dependencies = { }", prj.name, fastbuild.projectPlatform(cfg));
             p.w()
         end
@@ -228,7 +228,7 @@
     function m.clCompileAdditionalIncludeDirectories(cfg)
         m.additionalIncludeDirectories(cfg, cfg.includedirs)
     end
-    
+
     function m.additionalIncludeDirectories(cfg, includedirs)
         local wks = cfg.workspace
         if not wks then -- we got a fcfg
@@ -240,19 +240,19 @@
         if #includedirs > 0 then
             local dirs = fbuild.path(wks, includedirs)
             if #dirs > 0 then
-                for _, dir in pairs(dirs) do 
+                for _, dir in pairs(dirs) do
                     m.element(('/I"%s"'):format(dir))
                 end
             end
         end
     end
 
-    -- 
-    -- Enables Delayed Dll Loading 
+    --
+    -- Enables Delayed Dll Loading
     function m.delayLoadDlls(cfg)
         if cfg.delayloaddlls then
             local mapped = { }
-            for _, dll in pairs(cfg.delayloaddlls) do 
+            for _, dll in pairs(cfg.delayloaddlls) do
                 mapped[dll] = true
             end
 
@@ -262,7 +262,7 @@
             end
 
             table.sort(sorted, function(e1, e2) return e1 < e2 end)
-            for _, dll in pairs(sorted) do 
+            for _, dll in pairs(sorted) do
                 m.element(('/DELAYLOAD:"%s"'):format(dll), "Load DLL on first function call.")
             end
         end
@@ -270,7 +270,7 @@
 
     function m.debugInformationFormat(cfg)
         local value
-        local format 
+        local format
 
         if (cfg.symbols == p.ON) or (cfg.symbols == "FastLink") then
             if cfg.debugformat == "c7" then
@@ -301,7 +301,7 @@
             m.element("/EHsc", "ExceptionHandling: %s", cfg.exceptionhandling)
         elseif cfg.exceptionhandling == "CThrow" then
             m.element("/EHs", "ExceptionHandling: %s", cfg.exceptionhandling)
-        else 
+        else
             m.element("/EHsc", "ExceptionHandling: %s (default)", cfg.exceptionhandling)
         end
     end
@@ -348,9 +348,9 @@
         if #opts > 0 then
 
             local found_opts = { }
-            local unique_opts = { } 
-            for _, opt in pairs(opts) do 
-                if not found_opts[opt] then 
+            local unique_opts = { }
+            for _, opt in pairs(opts) do
+                if not found_opts[opt] then
                     found_opts[opt] = true
                     table.insert(unique_opts, opt)
                 end
@@ -369,9 +369,9 @@
         if #opts > 0 then
 
             local found_opts = { }
-            local unique_opts = { } 
-            for _, opt in pairs(opts) do 
-                if not found_opts[opt] then 
+            local unique_opts = { }
+            for _, opt in pairs(opts) do
+                if not found_opts[opt] then
                     found_opts[opt] = true
                     table.insert(unique_opts, opt)
                 end
@@ -403,15 +403,23 @@
     function m.unityBuildDisabled(cfg)
         local prjcfg, filecfg = p.config.normalize(cfg)
         if filecfg then
-            if filecfg.flags.FBUnityBuildDisabled then 
-                m.element("", "UnityBuild disabled")
+            if filecfg.flags.FBUnityBuildDisabled then
+                m.element("", "FastBuild UnityBuild disabled")
             end
         end
     end
 
+    function m.unityTag(cfg)
+        local prjcfg, filecfg = p.config.normalize(cfg)
+        if filecfg and filecfg.fbtag then
+            m.element("", "Tag: %s", filecfg.fbtag)
+        end
+    end
+
+
 ---
 -- Linker options
---- 
+---
     function m.generateDebugInformation(cfg)
         local lookup = {}
 
@@ -436,7 +444,7 @@
 ---------------------------------------------------------------------------
 
     m.elements.buildsteps = function(cfg)
-        return { 
+        return {
             m.preBuildCommands,
             m.preLinkCommands,
             m.postBuildCommands
@@ -445,7 +453,7 @@
 
     function m.buildStepCommands(prj)
         local n = 0
-        for cfg in project.eachconfig(prj) do 
+        for cfg in project.eachconfig(prj) do
             n = n + 1
             p.callArray(m.elements.buildsteps, tostring(n), cfg, prj)
         end
@@ -456,20 +464,20 @@
     function m.preBuildCommands(nth, cfg, prj)
         local prj_cmds = { }
         if prj then
-            for _, cmd in ipairs(prj.fbprebuildcommands) do 
+            for _, cmd in ipairs(prj.fbprebuildcommands) do
                 prj_cmds[cmd.output] = true
             end
         end
 
-        for _, cmd in ipairs(cfg.fbprebuildcommands) do 
-            if not prj_cmds[cmd.output] then 
+        for _, cmd in ipairs(cfg.fbprebuildcommands) do
+            if not prj_cmds[cmd.output] then
                 m.emitExecFunctionCall("prebuild_" .. nth, cfg, cmd)
             end
         end
     end
 
     m.elements.exec = function(cfg, cmds)
-        return { 
+        return {
             m.emitExecExecutable,
             m.emitExecArguments,
             m.emitExecInput,
@@ -492,11 +500,11 @@
         fbuild.emitStructValue("ExecArguments", cmd.arguments, false, fbuild.fmap.quote)
     end
 
-    function m.emitExecOutput(cfg, cmd) 
+    function m.emitExecOutput(cfg, cmd)
         fbuild.emitStructValue("ExecOutput", cmd.output, false, fbuild.fmap.quote)
     end
 
-    function m.emitExecInput(cfg, cmd) 
+    function m.emitExecInput(cfg, cmd)
         fbuild.emitStructValue("ExecInput", cmd.input, false, fbuild.fmap.quote)
     end
 
@@ -505,7 +513,7 @@
         if not cfg.project then
             p.x(".%s_%s_compile_dependencies + '%s'", prj.name, fastbuild.projectPlatform(cfg), exec_target)
         else
-            for cfg in project.eachconfig(prj) do 
+            for cfg in project.eachconfig(prj) do
                 p.x(".%s_%s_compile_dependencies + '%s'", prj.name, fastbuild.projectPlatform(cfg), exec_target)
             end
         end
@@ -518,7 +526,7 @@
 --
 ---------------------------------------------------------------------------
 
-    function m.files(prj) 
+    function m.files(prj)
         local groups = m.categorizeSources(prj)
         for _, group in ipairs(groups) do
             local mapped_files = group.category.emitFiles(prj, group)
@@ -552,7 +560,7 @@
 ---
 -- CustomBuild group
 ---
-    function m.isAssemblyFile(fcfg) 
+    function m.isAssemblyFile(fcfg)
         return fcfg and path.hasextension(fcfg.name, ".asm")
     end
 
@@ -563,7 +571,7 @@
         inputField = "InputFiles",
 
         emitFiles = function(prj, group)
-            local fileCfgFunc = { 
+            local fileCfgFunc = {
                 m.buildCommands
             }
 
@@ -593,7 +601,7 @@
 
     m.elements.compile = function(prj, cfg, name, files)
         if prj.unity_builds then
-            return { 
+            return {
                 -- m.emitUnityFunction
                 files and m.emitUnitySpecificFiles or m.emitUnityUsingDefaultFiles,
                 m.emitUnityOutputPath,
@@ -603,7 +611,7 @@
                 m.emitUnityIsolateWritableFilesLimit,
             }
         else
-            return { 
+            return {
             }
         end
     end
@@ -617,24 +625,25 @@
 
         emitFiles = function(prj, group)
             local fileCfgFunc = function(fcfg)
-                if fcfg then 
+                if fcfg then
                     return {
                         m.clCompilePreprocessorDefinitions,
                         m.clCompileAdditionalIncludeDirectories,
                         m.generatedFile,
                         m.precompiledHeader,
-                        m.unityBuildDisabled
+                        m.unityBuildDisabled,
+                        m.unityTag
                     }
-                else 
-                    return { 
+                else
+                    return {
                     }
                 end
             end
 
             return m.emitFiles(prj, group, "default", { }, fileCfgFunc, function(cfg, fcfg)
-                if fcfg then 
+                if fcfg then
                     return not fcfg.flags.ExcludeFromBuild
-                else 
+                else
                     return true
                 end
             end)
@@ -642,37 +651,21 @@
 
         emitLibs = function(prj, group, mapped_files)
             local pch_files = group.pch_files
-            
+
             local function addAsCompileDependency(data)
                 p.x(".%s_%s_compile_dependencies + { '%s' }", data.prj.name, fastbuild.projectPlatform(data.cfg), data.name)
             end
 
             local function hasFlag_NoPCH(data)
-                return data.files and #data.files > 0 and data.files[1].flags.NoPCH 
+                return data.files and #data.files > 0 and data.files[1].flags.NoPCH
             end
 
-            local function addPCHOptions(data)
-                local prj = data.prj 
-                local cfg = data.cfg
-
-                if cfg.pchheader and not hasFlag_NoPCH(data) then
-                    local pch_output = fastbuild.path(cfg, cfg.objdir .. "/" .. path.getbasename(cfg.pchheader) .. ".pch")
-
-                    p.x(".CompilerOptions")
-                    m.element(('/Yu"%s"'):format(prj.pchheader), "PrecompiledHeader header file")
-                    m.element(('/Fp"%s"'):format(pch_output), "PrecompiledHeader database")
-                end
-            end
-
-
-            local function addPCHSupport(data)
-                local prj = data.prj
-                local cfg = data.cfg
+            local function addPCHSupport(prj, cfg, name)
                 local files = pch_files[cfg]
 
-                if files and #files == 1 then 
+                if files and #files == 1 then
                     local pch_source = fastbuild.path(cfg, prj.pchsource)
-                    local pch_output = fastbuild.path(cfg, cfg.objdir .. "/" .. path.getbasename(cfg.pchheader) .. ".pch")
+                    local pch_output = fastbuild.path(cfg, cfg.objdir .. "/" .. name .. ".pch")
 
                     p.x("")
                     p.x("; PrecompiledHeader settings")
@@ -687,6 +680,14 @@
                 end
             end
 
+            local function addPCHOptions(data)
+                local prj = data.prj
+                local cfg = data.cfg
+
+                if cfg.pchheader and not hasFlag_NoPCH(data) then
+                    addPCHSupport(prj, cfg, data.name)
+                end
+            end
 
             local spec_files = group.spec_files
             local gen_files = group.gen_files
@@ -722,15 +723,8 @@
                 local lib
                 local libs = { }
 
-                if pch_files[cfg] and #pch_files[cfg] == 1 then 
-                    lib = m.writeObjectList(prj, cfg, { }, "pch", pch_compiler_object_list, { addAsCompileDependency })
-                    if lib then 
-                        table.insert(libs, lib)
-                    end
-                end
-
                 local num = 0
-                for content, files in pairs(mapped_files.custom[cfg]) do 
+                for content, files in pairs(mapped_files.custom[cfg]) do
                     num = num + 1
 
                     local func_list = table.deepcopy(custom_compiler_object_list)
@@ -742,25 +736,25 @@
                     end
 
                     lib = m.writeObjectList(prj, cfg, files, "custom" .. num, func_list)
-                    if lib then 
+                    if lib then
                         table.insert(libs, lib)
                     end
                 end
 
                 if mapped_files.default then
-                    if prj.unity_builds then 
+                    if prj.unity_builds then
                         local unity = m.emitUnityFunction(prj, cfg, "default", m.elements.compile)
-                        lib = m.emitObjectList_2(prj, cfg, "default", { 
+                        lib = m.emitObjectList_2(prj, cfg, "default", {
                             m.emitObjectList2UsingConfig,
                             m.emitObjectList2Dependency,
                             m.emitObjectList2CompilerInputUnity(unity),
                             m.emitObjectList2CompilerOutputPath,
-                            function(prj, cfg) addPCHOptions({ prj = prj, cfg = cfg }) end
+                            function(prj, cfg) addPCHOptions({ prj = prj, cfg = cfg, name = prj.name .. "_pch" }) end
                         })
                     else
                         lib = m.writeObjectList(prj, cfg, {}, "default", default_compiler_object_list)
                     end
-                    if lib then 
+                    if lib then
                         table.insert(libs, lib)
                     end
                 end
@@ -845,10 +839,10 @@
                 m.emitObjectList2CompilerOutputPath,
             }
 
-            local results = { 
-                function(prj, cfg, name) 
+            local results = {
+                function(prj, cfg, name)
                     p.x(".libs_%s_%s + { '%s' }", prj.name, fastbuild.projectPlatform(cfg), name)
-                end  
+                end
             }
 
             for cfg in project.eachconfig(prj) do
@@ -913,7 +907,7 @@
 
             local function scopedFunction(cfg)
 
-                for content, files in pairs(mapped_files.custom[cfg]) do 
+                for content, files in pairs(mapped_files.custom[cfg]) do
 
                     local asm_object_list = {
                         m.objectListPreBuildDependency(".{prj}_{platform}_compile_dependencies", true),
@@ -935,7 +929,7 @@
             end
 
             for cfg in project.eachconfig(prj) do
-                m.emitScope({ 
+                m.emitScope({
                     m.emitUsingCA(fbuild.targetCompilerPlatformStruct(cfg)),
                     scopedFunction,
                 }, {}, cfg)
@@ -1084,22 +1078,22 @@
     function m.emitCustomFiles(prj, group, tag, fileCfgFunc, fileProcFunc, checkFunc)
         local files = group.files
         local category = group.category
-        
+
         local processed_files = { }
         local function sort_asc(f1, f2) return f1.name < f2.name end
 
-        if files and #files > 0 then 
+        if files and #files > 0 then
 
-            -- For each file 
-            for _, file in pairs(files) do 
+            -- For each file
+            for _, file in pairs(files) do
                 local rel = fastbuild.path(prj, file.abspath)
 
-                -- In each configuration 
+                -- In each configuration
                 for cfg in project.eachconfig(prj) do
                     local buildcfg = cfg.buildcfg
                     local proc_cfg_files = processed_files[cfg.buildcfg] or { default = { } }
 
-                    -- Get the file config 
+                    -- Get the file config
                     local fcfg = fileconfig.getconfig(file, cfg)
                     if not checkFunc or checkFunc(cfg, fcfg) then
 
@@ -1108,15 +1102,15 @@
                             p.callArray(fileCfgFunc, fcfg)
                         end)
 
-                        -- We got some custom putput 
+                        -- We got some custom putput
                         if #contents > 0 then
                             proc_cfg_files[contents] = proc_cfg_files[contents] or { }
                             table.insert(proc_cfg_files[contents], file)
-                        else 
+                        else
                             table.insert(proc_cfg_files.default, file)
                         end
 
-                        -- Save the list 
+                        -- Save the list
                         processed_files[cfg.buildcfg] = proc_cfg_files
 
                     end
@@ -1125,12 +1119,12 @@
             end
 
 
-            -- In each configuration 
+            -- In each configuration
             for cfg in project.eachconfig(prj) do
                 local proc_files = processed_files[cfg.buildcfg]
 
                 local sorted = { }
-                for cont, files in pairs(proc_files) do 
+                for cont, files in pairs(proc_files) do
                     table.insert(sorted, { cont, files })
                 end
 
@@ -1138,8 +1132,8 @@
                     return e1[1] < e2[1]
                 end)
 
-                for _, entry in pairs(sorted) do 
-                    p.callArray(fileProcFunc, prj, cfg, entry[2], entry[1]) 
+                for _, entry in pairs(sorted) do
+                    p.callArray(fileProcFunc, prj, cfg, entry[2], entry[1])
                 end
             end
 
@@ -1179,7 +1173,7 @@
                         assert(not pch_files[cfg])
                         pch_files[cfg] = { { fcfg, contents } }
                         is_default = false
-                        
+
                     elseif #contents > 0 then
                         contents = "\n" .. contents
 
@@ -1199,8 +1193,8 @@
             return is_default
         end
 
-        local function emitInnerList(files) 
-            m.emitListItems(files, function(file) 
+        local function emitInnerList(files)
+            m.emitListItems(files, function(file)
                 file_map.default = true
                 return fastbuild.path(prj, file.abspath)
             end, checkEachFile)
@@ -1239,7 +1233,7 @@
         local data = {
             prj = prj,
             cfg = cfg,
-            files = files, 
+            files = files,
 
             platform = prjplatform,
             name = name
@@ -1285,7 +1279,7 @@
         p.x(".CompilerOutputPath = '%s'", fastbuild.path(prj, cfg.objdir))
     end
 
-    function m.objectListCompilerOptions(options) 
+    function m.objectListCompilerOptions(options)
         return function(data)
             p.x(".CompilerOptions %s", options)
         end
@@ -1327,7 +1321,7 @@
 -- Handlers for emiting object list calls
 --
 ---------------------------------------------------------------------------
-    
+
     function m.emitObjectList_2(prj, cfg, postfix, inner, after, ...)
         local platform = fastbuild.projectPlatform(cfg)
         local name = fastbuild.targetName(cfg, "objects", postfix)
@@ -1338,7 +1332,7 @@
 
     function m.emitObjectList2Dependency(prj, cfg, name, files)
         p.x(".PreBuildDependencies = .%s", fastbuild.targetName(cfg, nil, "compile_dependencies"))
-        if not files then 
+        if not files then
             p.x(".PreBuildDependencies + .%s", fastbuild.targetName(cfg, nil, "prebuild_deps"))
         end
     end
@@ -1379,7 +1373,7 @@
 
     function m.emitUnityUsingDefaultFiles(prj, cfg)
         m.emitUsing("default_" .. prj.name .. "_files")
-        p.x(".UnityNumFiles = %s", tostring(math.floor(#prj.default_files / 45 + 1))) 
+        p.x(".UnityNumFiles = %s", tostring(math.floor(#prj.default_files / 45 + 1)))
         p.x(".UnityInputFiles = %s", ".CompilerInputFiles")
     end
 
@@ -1410,9 +1404,9 @@
             fbuild.emitStructValue("UnityInputIsolateWritableFilesLimit", prj.fbunity.isolate_writable_files_limit);
         end
     end
- 
+
     function m.emitUnityPCHFile(prj, cfg)
-        if cfg.pchheader and not cfg.flags.NoPCH then 
+        if cfg.pchheader and not cfg.flags.NoPCH then
             p.x(".UnityPCH = '%s'", cfg.pchheader)
         end
     end
@@ -1442,11 +1436,11 @@
     end
 
     function m.emitListItems(items, fmap, check)
-        if not fmap then 
+        if not fmap then
             fmap = function(e) return e end
         end
 
-        for _, item in pairs(items) do 
+        for _, item in pairs(items) do
             if not check or check(item) then
                 p.x("'%s', ", fmap(item))
             end
@@ -1529,12 +1523,12 @@
         if #refs > 0 then
             for _, ref in ipairs(refs) do
                 local linktarget = project.getconfig(ref, cfg.buildcfg, cfg.platform or "Win32").linktarget
-                if linktarget and ref.kind ~= p.CONSOLEAPP then 
+                if linktarget and ref.kind ~= p.CONSOLEAPP then
                     table.insert(libs, path.translate(linktarget.directory .. "/") .. linktarget.name) --  ("%s_%s-%s"):format(ref.name, cfg.buildcfg, cfg.platform))
-                else 
+                else
                 end
             end
-        end 
+        end
         return libs
     end
 
@@ -1550,7 +1544,7 @@
         p.x("Using( .config_%s_%s )", prj.name, fastbuild.projectPlatform(cfg))
         p.x(".LinkerOptions + ' /SUBSYSTEM:%s'", subsystem)
         p.push()
-        for _, lib in pairs(dep_libs) do 
+        for _, lib in pairs(dep_libs) do
             p.x('+ \' "%s"\'', lib)
         end
         p.pop()
@@ -1576,7 +1570,7 @@
         p.push()
         p.x("+ ' /SUBSYSTEM:WINDOWS'")
         p.x("+ ' /IMPLIB:\"%s\"'", cfg.linktarget.abspath)
-        for _, lib in pairs(dep_libs) do 
+        for _, lib in pairs(dep_libs) do
             p.x('+ \' "%s"\'', lib)
         end
         p.pop()
@@ -1589,7 +1583,7 @@
         p.w()
     end
 
-    function m.projectLibrary(prj, cfg)        
+    function m.projectLibrary(prj, cfg)
         p.x("Library('%s')", fastbuild.projectTargetname(prj, cfg))
         p.push("{")
         p.x("Using( .config_%s_%s )", prj.name, fastbuild.projectPlatform(cfg))
@@ -1603,24 +1597,24 @@
 
 ---------------------------------------------------------------------------
 --
--- Visual studio project support 
+-- Visual studio project support
 --
 ---------------------------------------------------------------------------
 
 
     m.elements.vstudio = function(prj)
-        if not prj.vstudio_enabled then 
-            return { } 
+        if not prj.vstudio_enabled then
+            return { }
         end
 
-        return { 
+        return {
             m.projectVStudioConfigs,
             m.projectVStudioFilters,
             m.projectVStudioBegin,
             m.projectVStudioBuildCommands,
             m.projectVStudioFiles,
             m.projectVStudioEnd,
-        } 
+        }
     end
 
     function m.projectVisualStudio(prj)
@@ -1638,7 +1632,7 @@
             p.x(".Target = '%s'", fbuild.projectTargetname(prj, cfg))
             p.x(".Output = '%s'", path.translate(cfg.buildtarget.abspath))
 
-            -- local out_dir = 
+            -- local out_dir =
             p.x(".OutputDirectory = '%s'", path.translate(cfg.buildtarget.directory))
             p.x(".LocalDebuggerWorkingDirectory = '^$(OutDir)'")
             p.push(".AdditionalOptions = ''")
@@ -1656,11 +1650,11 @@
             m.projectVStudioConfig(prj, cfg)
         end
 
-        -- Create mocks for configmaps 
-        for _, platform in ipairs(prj.platforms) do 
+        -- Create mocks for configmaps
+        for _, platform in ipairs(prj.platforms) do
             for _, mapping in ipairs(prj.configmap) do
 
-                for name, configs in pairs(mapping) do 
+                for name, configs in pairs(mapping) do
                     local config = project.getconfig(prj, configs[1], platform)
                     assert(config ~= nil, ("Invalid comfig mapping for '%s'"):format(name))
 
@@ -1712,8 +1706,8 @@
 
     ---
     -- Custom build commands
-    --- 
-    function m.buildCommands(fcfg) 
+    ---
+    function m.buildCommands(fcfg)
         local prj = fcfg.project
         local cfg = fcfg.config
 
@@ -1730,7 +1724,7 @@
             p.x(".ExecInput = '%s'", fastbuild.path(prj, fcfg.abspath))
             p.x(".ExecOutput = '%s'", fastbuild.path(prj, cmd.output))
             p.x(".ExecArguments = ''")
-            for _, arg in pairs(cmd.arguments) do 
+            for _, arg in pairs(cmd.arguments) do
                 p.x(".ExecArguments + ' %s'", arg)
             end
             p.x(".PreBuildDependencies = .%s_%s_prebuild_deps", prj.name, fastbuild.projectPlatform(cfg))
@@ -1766,7 +1760,7 @@
         end
 
         if #links > 0 then
-            for _, link in pairs(links) do 
+            for _, link in pairs(links) do
                 m.element(('"%s"'):format(link), "Additional libray: %s", link)
             end
         end
@@ -1784,7 +1778,7 @@
         if #cfg.libdirs > 0 then
             local libdirs = fastbuild.path(cfg, cfg.libdirs)
             for _, dir in pairs(libdirs) do
-                m.element(('/LIBPATH:"%s"'):format(dir), "Library path: %s", dir) 
+                m.element(('/LIBPATH:"%s"'):format(dir), "Library path: %s", dir)
             end
         end
     end
@@ -1796,26 +1790,26 @@
     end
 
     function m.generatedFile(fcfg)
-        if fcfg and fcfg.generated then 
+        if fcfg and fcfg.generated then
             m.element("", "Generated file flag")
         end
     end
 
     function m.entryPointSymbol(cfg)
-        if cfg.entrypoint and #cfg.entrypoint > 0 then -- #todo maybe check if this a console or windowed app? 
+        if cfg.entrypoint and #cfg.entrypoint > 0 then -- #todo maybe check if this a console or windowed app?
             m.element(('/ENTRY:"%s"'):format(cfg.entrypoint), "Entry point for the application to be used: %s", cfg.entrypoint)
         end
     end
 
     function m.projectAliases(prj)
-        for _, platform in ipairs(prj.platforms) do 
+        for _, platform in ipairs(prj.platforms) do
             for _, mapping in ipairs(prj.configmap) do
 
-                for name, configs in pairs(mapping) do 
+                for name, configs in pairs(mapping) do
                     local config = project.getconfig(prj, configs[1], platform)
                     assert(config ~= nil, ("Invalid comfig mapping for '%s'"):format(name))
 
-                    fbuild.emitAlias(fbuild.projectTargetname(prj, { project = prj, buildcfg = name, platform = platform }), { 
+                    fbuild.emitAlias(fbuild.projectTargetname(prj, { project = prj, buildcfg = name, platform = platform }), {
                         fbuild.fmap.quote(fbuild.projectTargetname(prj, config))
                     })
                 end

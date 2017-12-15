@@ -1,7 +1,7 @@
 --
 -- actions/fastbuild/fastbuild.lua
 -- Extend the existing exporters with support for FASTBuild
--- Copyright (c) 2017-2017 Daniel Penkała 
+-- Copyright (c) 2017-2017 Daniel Penkała
 --
 
     local p = premake
@@ -37,22 +37,22 @@
 -- Return the list of sections contained in the solution.
 -- TODO: Get rid of this when the MonoDevelop module no longer needs it
 --
-    
-    m.elements.workspace = function(wks) 
-        return { 
-            -- General 
+
+    m.elements.workspace = function(wks)
+        return {
+            -- General
             m.header,
             m.globals,
             m.settings,
             m.compilers,
-            -- Projects 
+            -- Projects
             m.allStructs,
             m.includeProjects,
             m.allTargets,
             iif(_OPTIONS["fb-vstudio"], m.emitSolutionFunc, fbuild.fmap.pass)
         }
     end
-    
+
 
 
 ---
@@ -69,14 +69,14 @@
 -- Prints the workspace file header
 ---
 
-    function m.header(wks) 
+    function m.header(wks)
         f.section("FASTBuild Solution: %s", wks.name)
     end
 
 
 
 ---
--- Tries to find the defined compiler file definitions and includes them to the workspace 
+-- Tries to find the defined compiler file definitions and includes them to the workspace
 ---
 
     function m.compilers(wks)
@@ -88,7 +88,7 @@
 
         -- Iterate over each compiler and save the architecture | system pair
         table.foreachi(wks.fbcompilers, function(compiler)
-            local name = compiler.name 
+            local name = compiler.name
             local system = compiler.system
             local architecture = compiler.architecture
             local toolset = compiler.toolset
@@ -116,30 +116,30 @@
             assert(is_compiler_present, ("No compiler found for target platform %s!"):format(target_platform))
         end
 
-        -- Save the compiler list for later use 
+        -- Save the compiler list for later use
         wks.compilers = available_compilers
     end
 
 
 ---
--- Write global values info the solution file 
+-- Write global values info the solution file
 ---
-    
+
     m.elements.globals = function(wks)
-        return { 
+        return {
             fbuild.call(fbuild.emitStructValue, "WorkspaceLocation", wks.location, false, fbuild.fmap.quote)
         }
     end
 
     function m.globals(wks)
         p.x("\n// FASTBuild global values ")
-        p.x("//-----")  
+        p.x("//-----")
         p.callArray(m.elements.globals, wks)
     end
 
 
 ---
--- Write settings info the solution file 
+-- Write settings info the solution file
 ---
 
     m.elements.settings = function(wks)
@@ -152,13 +152,13 @@
         p.x("\n// FASTBuild settings ")
         p.x("//-----")
 
-        p.x("Settings") -- The 'Settings' element in fastbuild is quite special, it's not a function call nor a struct so we 'emulate' it with a scope 
+        p.x("Settings") -- The 'Settings' element in fastbuild is quite special, it's not a function call nor a struct so we 'emulate' it with a scope
         fbuild.emitScope(m.elements.settings)
     end
 
     function m.settingCachePath(wks)
         local cache_path = _OPTIONS["fb-cache-path"]
-        if cache_path and #cache_path > 0 then 
+        if cache_path and #cache_path > 0 then
             p.x(".CachePath = '%s'", path.translate(cache_path))
         end
     end
@@ -201,7 +201,7 @@
         p.x("\n// All targets (for default configurations) ")
         p.x("//-----")
 
-        for cfg in workspace.eachconfig(wks) do 
+        for cfg in workspace.eachconfig(wks) do
             fbuild.emitFunction("Alias", fbuild.targetName2("all", cfg), {
                 fbuild.call(p.x, ".Targets = .AllTargets_%s", fbuild.solutionConfig(cfg))
             })
@@ -212,42 +212,60 @@
 
 ---------------------------------------------------------------------------
 --
--- VSSolution function call 
+-- VSSolution function call
 --
 ---------------------------------------------------------------------------
 
     m.elements.vstudio_filters = function(wks)
-        return { 
+        return {
         }
     end
 
     m.elements.vstudio = function(wks)
-        return { 
+        return {
             m.solutionOutputLocation,
             m.solutionBuildProject,
             m.solutionProjects,
             m.solutionDependencies,
-        } 
+        }
     end
 
 ---
 -- Emits an additional "All" project which is used to build executable project with the f5 key, however it will always perform a full solution build
---- 
+---
 
     function m.emitAllProject(wks)
         local function emitValue(name, value, fmap, ...)
             return fbuild.call(fbuild.emitStructValue, name, value:format(...), false, fmap)
         end
 
-        fbuild.emitFunction("VCXProject", fbuild._targetName("All", nil, "vcxproj"), { 
+        fbuild.emitFunction("VCXProject", fbuild._targetName("All", nil, "vcxproj"), {
             emitValue("ProjectOutput", "..\\build\\fastbuild\\All.vcxproj", fbuild.fmap.quote),
             emitValue("ProjectConfigs", ".SolutionConfigs"),
             emitValue("ProjectBuildCommand", "cd \"$(SolutionDir)\" &amp; fbuild -config %s.wks.bff -ide -monitor -dist -cache all-$(Platform)-$(Configuration)", fbuild.fmap.quote, wks.filename),
             emitValue("ProjectRebuildCommand", "cd \"$(SolutionDir)\" &amp; fbuild -config %s.wks.bff -ide -monitor -dist -cache -clean all-$(Platform)-$(Configuration)", fbuild.fmap.quote, wks.filename),
             emitValue("ProjectCleanCommand", "cd \"$(SolutionDir)\" &amp; fbuild -config %s.wks.bff -ide -monitor -dist -cache -clean", fbuild.fmap.quote, wks.filename),
+            emitValue("PlatformToolset", "v140", fbuild.fmap.quote)
         })
+    end
 
-        -- p.x(".ProjectConfigs = .%sSolutionConfigs", wks.name)
+
+
+---
+-- Emits an additional "RebuildSln" project which is used to rebuild the FastBuild solution
+---
+
+    function m.emitRebuildProject(wks)
+        local function emitValue(name, value, fmap, ...)
+            return fbuild.call(fbuild.emitStructValue, name, value:format(...), false, fmap)
+        end
+
+        fbuild.emitFunction("VCXProject", fbuild._targetName("Rebuild", nil, "vcxproj"), {
+            emitValue("ProjectOutput", "..\\build\\fastbuild\\Rebuild.vcxproj", fbuild.fmap.quote),
+            emitValue("ProjectConfigs", ".SolutionConfigs"),
+            emitValue("ProjectBuildCommand", "cd \"$(SolutionDir)\" &amp; fbuild -config %s.wks.bff %s-sln", fbuild.fmap.quote, wks.filename, wks.name),
+            emitValue("PlatformToolset", "v140", fbuild.fmap.quote)
+        })
     end
 
 
@@ -262,6 +280,7 @@
 
         m.emitSolutionConfigs(wks)
         m.emitAllProject(wks)
+        m.emitRebuildProject(wks)
         fbuild.emitFunction("VSSolution", fbuild._targetName(wks, nil, "sln"), m.elements.vstudio, nil, wks)
     end
 
@@ -269,12 +288,12 @@
 
 ---
 -- Emits the solution output location
---- 
-    
+---
+
     function m.solutionOutputLocation(wks)
         local filename = wks.name .. "_fb.sln"
 
-        -- Emit the struct value 
+        -- Emit the struct value
         fbuild.emitStructValue("SolutionOutput", filename, false, fbuild.fmap.quote)
     end
 
@@ -282,8 +301,8 @@
 
 ---
 -- Emits the solution active build projecty (f5 enabled project)
---- 
-    
+---
+
     function m.solutionBuildProject(wks)
         local buildprj = fbuild._targetName("All", nil, "vcxproj")
 
@@ -295,16 +314,17 @@
 
 ---
 -- Emits all projects which the solution should open
---- 
-    
+---
+
     function m.solutionProjects(wks)
-        local function emitAllProject()
-            p.x("%s", fbuild.fmap.quote(fbuild._targetName("All", nil, "vcxproj")))
+        local function emitAdditionalProjects()
+            p.x("%s,", fbuild.fmap.quote(fbuild._targetName("All", nil, "vcxproj")))
+            p.x("%s", fbuild.fmap.quote(fbuild._targetName("Rebuild", nil, "vcxproj")))
         end
 
-        -- Emits all solution projects in dependent order 
-        fbuild.emitList("SolutionProjects", { fbuild.emitListItems, emitAllProject }, nil, dependency_resolver.allprojects(wks), function(prj)
-            if fbuild.checkCompilers(prj) then 
+        -- Emits all solution projects in dependent order
+        fbuild.emitList("SolutionProjects", { fbuild.emitListItems, emitAdditionalProjects }, nil, dependency_resolver.allprojects(wks), function(prj)
+            if fbuild.checkCompilers(prj) then
                 local target_name = fbuild._targetName(prj.name, nil, "vcxproj")
                 return fbuild.fmap.quote(target_name)
             end
@@ -314,8 +334,8 @@
 
 
 ---
--- Emits dependency declartions across solution projects 
---- 
+-- Emits dependency declartions across solution projects
+---
 
     function m.solutionDependencies(wks)
         -- Helps to emit the list within the emited struct
@@ -339,7 +359,7 @@
         p.x("// Solution project dependencies")
 
         -- First emit the structure which will define dependencies to the 'All' project (we care only about 'executable' kinds)
-        fbuild.emitStruct("MainSolutionDependency", { emitExecutableProjectList, emitExecutableDependencies }, { 
+        fbuild.emitStruct("MainSolutionDependency", { emitExecutableProjectList, emitExecutableDependencies }, {
             fbuild.call(fbuild.emitStructValue, "SolutionDependencies", { ".MainSolutionDependency" }, false, fbuild.fmap.list)
         }, wks)
     end
@@ -347,8 +367,8 @@
 
 
 ---
--- Emits the solution configurations 
---- 
+-- Emits the solution configurations
+---
 
     function m.emitSolutionConfigs(wks)
         p.x("// List of all configurations")
@@ -362,11 +382,11 @@
         p.x("")
 
         local call = fbuild.call
-        fbuild.emitForLoop("Platform", "Platforms", 
-        { 
-            call(fbuild.emitForLoop, "Config", "Configurations", 
-            { 
-                call(fbuild.emitStruct, "Configuration", { 
+        fbuild.emitForLoop("Platform", "Platforms",
+        {
+            call(fbuild.emitForLoop, "Config", "Configurations",
+            {
+                call(fbuild.emitStruct, "Configuration", {
                     call(fbuild.emitStructValue, "Platform", "$Platform$", false, fbuild.fmap.quote),
                     call(fbuild.emitStructValue, "Config", "$Config$", false, fbuild.fmap.quote)
                 }),
@@ -389,7 +409,7 @@
     --     --     p.push(".%sFolder_%s = [", wks.name, group)
     --     --     p.x(".Path = '%s'", group)
     --     --     p.push(".Projects = {")
-    --     --     for _, prj in pairs(prjs) do 
+    --     --     for _, prj in pairs(prjs) do
     --     --         p.x("'%s_vcxproj', ", prj)
     --     --     end
     --     --     p.pop("}")

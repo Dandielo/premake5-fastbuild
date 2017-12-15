@@ -54,7 +54,7 @@
             m.files,
             m.projectBinary,
             m.projectAliases,
-            m.projectVisualStudio,
+            iif(_OPTIONS["fb-vstudio"], m.projectVisualStudio, fbuild.fmap.pass)
         }
     end
 
@@ -307,8 +307,9 @@
     end
 
     function m.linkIncremental(cfg)
-        if cfg.kind ~= p.STATICLIB then
-            m.element("/INCREMENTAL", "Incremental linking: %s", tostring(config.canLinkIncremental(cfg)))
+        local canLinkIncremental = config.canLinkIncremental(cfg)
+        if cfg.kind ~= p.STATICLIB and canLinkIncremental then
+            m.element("/INCREMENTAL", "Incremental linking: %s", tostring(canLinkIncremental))
         end
     end
 
@@ -1603,10 +1604,6 @@
 
 
     m.elements.vstudio = function(prj)
-        if not prj.vstudio_enabled then
-            return { }
-        end
-
         return {
             m.projectVStudioConfigs,
             m.projectVStudioFilters,
@@ -1679,9 +1676,9 @@
 
     function m.projectVStudioBuildCommands(prj)
         p.x("")
-        p.x(".ProjectBuildCommand = 'cd \"^$(SolutionDir)\" &amp; fbuild -config %s.wks.bff -ide -monitor -dist -cache ^$(ProjectName)-^$(Configuration)-^$(Platform)'", prj.workspace.name)
-        p.x(".ProjectRebuildCommand = 'cd \"^$(SolutionDir)\" &amp; fbuild -config %s.wks.bff -ide -monitor -dist -cache -clean ^$(ProjectName)-^$(Configuration)-^$(Platform)'", prj.workspace.name)
-        p.x(".ProjectCleanCommand = 'cd \"^$(SolutionDir)\" &amp; fbuild -config %s.wks.bff -ide -monitor -dist -cache -clean'", prj.workspace.name)
+        p.x(".ProjectBuildCommand = 'cd \"^$(SolutionDir)\" &amp; fbuild -config %s.wks.bff -ide -monitor -dist -cache %s-^$(Configuration)-^$(Platform)'", prj.workspace.filename, prj.name)
+        p.x(".ProjectRebuildCommand = 'cd \"^$(SolutionDir)\" &amp; fbuild -config %s.wks.bff -ide -monitor -dist -cache -clean %s-^$(Configuration)-^$(Platform)'", prj.workspace.filename, prj.name)
+        p.x(".ProjectCleanCommand = 'cd \"^$(SolutionDir)\" &amp; fbuild -config %s.wks.bff -ide -monitor -dist -cache -clean'", prj.workspace.filename)
     end
 
     function m.projectVStudioFiles(prj)

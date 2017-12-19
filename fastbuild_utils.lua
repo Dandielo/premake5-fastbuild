@@ -1,7 +1,7 @@
 --
 -- actions/fastbuild/fastbuild.lua
 -- Extend the existing exporters with support for FASTBuild
--- Copyright (c) 2017-2017 Daniel Penkała 
+-- Copyright (c) 2017-2017 Daniel Penkała
 --
 
     local p = premake
@@ -25,7 +25,7 @@
         p.x(utils.constants.section.separator)
     end
 
-    function utils.section(str, ...) 
+    function utils.section(str, ...)
         local formated = str:format(...)
         p.x(utils.constants.section.name, formated)
         utils.separator()
@@ -37,16 +37,16 @@
     end
 
     function utils.struct_pair(key, value, ...)
-        if type(value) == "string" then 
-            if #({...}) == 0 then 
+        if type(value) == "string" then
+            if #({...}) == 0 then
                 p.x(".%s = '%s'", key, value)
             else
                 p.x(".%s = '%s'", key, value:format(...))
             end
-        else 
+        else
             p.x(".%s = {", key)
             p.push()
-            for _, val in pairs(value) do 
+            for _, val in pairs(value) do
                 p.x("'%s',", val)
             end
             p.pop("}")
@@ -54,7 +54,7 @@
     end
 
     function utils.struct_pair_append(value, ...)
-        if #({...}) == 0 then 
+        if #({...}) == 0 then
             p.x("    + '%s'", value)
         else
             p.x("    + '%s'", value:format(...))
@@ -62,7 +62,7 @@
     end
 
     function fbuild.struct_pair_append(value, ...)
-        if #({...}) == 0 then 
+        if #({...}) == 0 then
             p.x("    + %s", value)
         else
             p.x("    + %s", value:format(...))
@@ -76,9 +76,9 @@
 
     function utils.struct(name, fields)
         utils.struct_begin(name)
-        for _, field in pairs(fields) do 
+        for _, field in pairs(fields) do
             local name = field[1]
-            
+
             if type(field[2]) == "string" then
                 local value = field[2]:format(field[3], field[4], field[5], field[6])
                 utils.struct_pair(name, value)
@@ -86,7 +86,7 @@
             else
                 local value = field[2]
                 utils.struct_pair(name, value[1])
-                for i = 2, #value do 
+                for i = 2, #value do
                     utils.struct_pair_append(value[i])
                 end
             end
@@ -106,7 +106,7 @@
         local wks = prj.workspace
         local configs_have_compilers = true
 
-        for cfg in p.project.eachconfig(prj) do 
+        for cfg in p.project.eachconfig(prj) do
             configs_have_compilers = configs_have_compilers and wks.compilers[fbuild.targetCompilerPlatform(cfg)] ~= nil
         end
 
@@ -114,10 +114,14 @@
     end
 
 
+    function fbuild.vstudioProjectToolset(prj)
+        return (prj.toolset or ""):match("msc%-(v%d+)") or prj.toolset
+    end
+
 
 ---------------------------------------------------------------------------
 --
--- Naming utils 
+-- Naming utils
 --
 ---------------------------------------------------------------------------
 
@@ -126,8 +130,8 @@
 ---
     local function filterempty(tab)
         local result = { }
-        for _, v in pairs(tab) do 
-            if v then 
+        for _, v in pairs(tab) do
+            if v then
                 table.insert(result, v)
             end
         end
@@ -167,7 +171,7 @@
         local name = obj.name or obj
         return table.concat({ name, cfg.platform, cfg.buildcfg }, iif(join, join, "-"))
     end
-    
+
 
     function fbuild._targetName(cfg, prefix, suffix)
         return iif(cfg.project and cfg.project ~= cfg, generatedNameConfig, generatedNameProject)("-", cfg, prefix, suffix)
@@ -195,7 +199,7 @@
 
 
 
---- 
+---
 -- Returns the target platform name for the given config
 ---
 
@@ -207,8 +211,8 @@
 
 
 ---
--- Returns the fbuild name for the platform structure to be used for ObjectList and Library functions 
---- 
+-- Returns the fbuild name for the platform structure to be used for ObjectList and Library functions
+---
 
     function fbuild.targetCompilerPlatform(cfg)
         local config = cfg.config or cfg
@@ -230,7 +234,7 @@
 
 ---------------------------------------------------------------------------
 --
--- Generation utils 
+-- Generation utils
 --
 ---------------------------------------------------------------------------
 
@@ -238,7 +242,7 @@
 -- Emits an include statement with the given path to the output file
 ---
 
-    function fbuild.include(path) 
+    function fbuild.include(path)
         p.x('#include "%s"', path)
     end
 
@@ -246,12 +250,12 @@
 
 ---
 -- Emits an Alias function call
---- 
+---
 
     function fbuild.emitAlias(name, targets, fmap)
         fmap = iif(fmap, fmap, function(e) return e end)
 
-        fbuild.emitFunction("Alias", name, { 
+        fbuild.emitFunction("Alias", name, {
             fbuild.call(fbuild.emitList, "Targets", {
                 fbuild.call(fbuild.emitListItems, targets, fmap)
             })
@@ -268,7 +272,7 @@
 
 
 ---
--- Emits a Using statement to the output file 
+-- Emits a Using statement to the output file
 ---
 
     function fbuild.emitUsing(value, ...)
@@ -278,7 +282,7 @@
 
 
 ---
--- Emits a function call to the output file 
+-- Emits a function call to the output file
 ---
 
     function fbuild.emitFunction(name, alias, inner, after, ...)
@@ -293,7 +297,7 @@
 
 
 ---
--- Emits a for loop statement to the output file 
+-- Emits a for loop statement to the output file
 ---
 
     function fbuild.emitForLoop(arg, array, inner, after, ...)
@@ -304,7 +308,7 @@
 
 
 ---
--- Emits a list definition to the output file 
+-- Emits a list definition to the output file
 ---
 
     function fbuild.emitList(name, inner, after, ...)
@@ -315,7 +319,7 @@
 
 
 ---
--- Emits items to the output file 
+-- Emits items to the output file
 ---
 
     function fbuild.emitListItems(items, fmap, ...)
@@ -323,7 +327,7 @@
 
         for _, item in ipairs(items) do
             local val = fmap(item, ...)
-            if val then 
+            if val then
                 p.x("%s, ", val)
             end
         end
@@ -332,7 +336,7 @@
 
 
 ---
--- Emits a scope construct to the output file 
+-- Emits a scope construct to the output file
 ---
 
     function fbuild.emitScope(inner, after, ...)
@@ -346,7 +350,7 @@
 
 
 ---
--- Emits a struct definition to the output file 
+-- Emits a struct definition to the output file
 ---
 
     function fbuild.emitStruct(name, inner, after, ...)
@@ -361,7 +365,7 @@
 
 
 ---
--- Emits a struct value definition 
+-- Emits a struct value definition
 ---
 
     function fbuild.emitStructValue(name, value, append, fmap)
@@ -371,7 +375,7 @@
 
 
 ---
--- Emits to parent struct value definition 
+-- Emits to parent struct value definition
 ---
 
     function fbuild.emitParentStructValue(name, value, fmap)
@@ -381,7 +385,7 @@
 
 
 ---
--- FMap functions so we can later use them without defining them everywhere 
+-- FMap functions so we can later use them without defining them everywhere
 ---
 
     fbuild.fmap = { }

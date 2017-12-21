@@ -1605,11 +1605,6 @@
         p.push("{")
         p.x("Using( .config_%s_%s )", prj.name, fastbuild.projectPlatform(cfg))
         p.x(".LinkerOptions + ' /SUBSYSTEM:%s'", subsystem)
-        p.push()
-        -- for _, lib in pairs(dep_libs) do
-        --     p.x('+ \' "%s"\'', lib)
-        -- end
-        p.pop()
 
         p.push(".Libraries = .libs_%s_%s", prj.name, fastbuild.projectPlatform(cfg))
         for _, inputs_struct in pairs(m.projectDependencyInputs(prj, cfg)) do
@@ -1639,9 +1634,6 @@
         p.push()
         p.x("+ ' /SUBSYSTEM:WINDOWS'")
         p.x("+ ' /IMPLIB:\"%s\"'", cfg.linktarget.abspath)
-        -- for _, lib in pairs(dep_libs) do
-        --     p.x('+ \' "%s"\'', lib)
-        -- end
         p.pop()
 
         p.push(".Libraries = .libs_%s_%s", prj.name, fastbuild.projectPlatform(cfg))

@@ -108,7 +108,6 @@
             m.clCompileAdditionalIncludeDirectories,
             m.exceptionHandling,
             m.runtimeTypeInfo,
-            m.programDatabaseFilename,
             m.additionalCompileOptions,
             m.precompiledHeader
         }
@@ -143,11 +142,6 @@
 
         for cfg in project.eachconfig(prj) do
             p.push(".%s_%s_prebuild_deps = {", prj.name, fastbuild.projectPlatform(cfg))
-            for _, ref in pairs(project.getdependencies(prj, "all")) do
-                if cfg.kind ~= p.STATICLIB or not link_deps[ref.name] then
-                    p.x("'%s', ", fastbuild.projectTargetname(ref, cfg))
-                end
-            end
             p.pop("}\n")
         end
 
@@ -328,8 +322,8 @@
         end
     end
 
-    function m.programDatabaseFilename(cfg, prj)
-        local path = fastbuild.path(prj, cfg.objdir) .. "/vc141.pdb"
+    function m.programDatabaseFilename(cfg, prj, name)
+        local path = fastbuild.path(prj, cfg.objdir .. "/" .. iif(name, name .. ".pdb", ""))
         m.element('/Fd"' .. path .. '"', "Program database file directory")
     end
 
@@ -681,6 +675,13 @@
                 end
             end
 
+            local function addCompilerOptions(data)
+                p.x(".PCHOptions")
+                m.programDatabaseFilename(data.cfg, data.prj, data.name)
+                p.x(".CompilerOptions")
+                m.programDatabaseFilename(data.cfg, data.prj, data.name)
+            end
+
             local function addPCHOptions(data)
                 local prj = data.prj
                 local cfg = data.cfg
@@ -707,7 +708,8 @@
                 m.objectListCompilerOutputPath,
                 m.objectListCompilerInputFilesRoot,
                 m.objectListCompilerInputFiles,
-                addPCHOptions
+                addPCHOptions,
+                addCompilerOptions,
             }
 
             local default_compiler_object_list = {
@@ -717,7 +719,8 @@
                 m.objectListPreBuildDependency(".{prj}_{platform}_prebuild_deps"),
                 m.objectListCompilerOutputPath,
                 m.objectListCompilerInputFilesRoot,
-                addPCHOptions
+                addPCHOptions,
+                addCompilerOptions,
             }
 
             for cfg in project.eachconfig(prj) do
@@ -750,7 +753,8 @@
                             m.emitObjectList2Dependency,
                             m.emitObjectList2CompilerInputUnity(unity),
                             m.emitObjectList2CompilerOutputPath,
-                            function(prj, cfg) addPCHOptions({ prj = prj, cfg = cfg, name = prj.name .. "_pch" }) end
+                            function(prj, cfg) addPCHOptions({ prj = prj, cfg = cfg, name = prj.name .. "_pch" }) end,
+                            function(prj, cfg) addCompilerOptions({ prj = prj, cfg = cfg, name = prj.name .. "_pdb" }) end
                         })
                     else
                         lib = m.writeObjectList(prj, cfg, {}, "default", default_compiler_object_list)
@@ -1523,10 +1527,67 @@
         local libs = { }
         if #refs > 0 then
             for _, ref in ipairs(refs) do
-                local linktarget = project.getconfig(ref, cfg.buildcfg, cfg.platform or "Win32").linktarget
-                if linktarget and ref.kind ~= p.CONSOLEAPP then
-                    table.insert(libs, path.translate(linktarget.directory .. "/") .. linktarget.name) --  ("%s_%s-%s"):format(ref.name, cfg.buildcfg, cfg.platform))
-                else
+
+                local linktarget = project.getconfig(ref, cfg.buildcfg, cfg.platform or "Win32").buildtarget
+
+                if use_dep_inputs and ref.kind == p.SHAREDLIB then
+
+                    table.insert(libs, path.translate(linktarget.directory .. "/") .. linktarget.name)
+
+                elseif not use_dep_inputs and (ref.kind ~= p.CONSOLEAPP and ref.kind ~= p.WINDOWEDAPP) then
+
+                    table.insert(libs, path.translate(linktarget.directory .. "/") .. linktarget.name)
+
+                end
+
+            end
+        end
+        return libs
+    end
+
+
+    function m.projectDependencyTargets(prj, cfg)
+
+        local use_dep_inputs = config.canLinkIncremental(cfg) and (cfg.usedependencyinputs and cfg.usedependencyinputs:lower() == "yes")
+        local refs = project.getdependencies(prj, 'linkOnly')
+        local libs = { }
+        if #refs > 0 then
+            for _, ref in ipairs(refs) do
+
+                local linktarget = project.getconfig(ref, cfg.buildcfg, cfg.platform or "Win32").buildtarget
+
+                if use_dep_inputs and ref.kind == p.SHAREDLIB then
+
+                    table.insert(libs, fastbuild.projectTargetname(ref, cfg)) -- path.translate(linktarget.directory .. "/") .. linktarget.name)
+
+                elseif not use_dep_inputs and (ref.kind ~= p.CONSOLEAPP and ref.kind ~= p.WINDOWEDAPP) then
+
+                    table.insert(libs, fastbuild.projectTargetname(ref, cfg)) -- path.translate(linktarget.directory .. "/") .. linktarget.name)
+
+                end
+
+            end
+        end
+        return libs
+    end
+
+    function m.projectLinkDependencyInputs(prj, cfg)
+        return cfg.usedependencyinputs and cfg.usedependencyinputs:lower() == "yes" and config.canLinkIncremental(cfg)
+    end
+
+    function m.projectDependencyInputs(prj, cfg)
+        if not m.projectLinkDependencyInputs(prj, cfg) then
+            return { }
+        end
+
+        local refs = project.getdependencies(prj, 'linkOnly')
+        local libs = { }
+        if #refs > 0 then
+            for _, ref in ipairs(refs) do
+
+                if ref.kind == p.STATICLIB then
+
+                    table.insert(libs, (".libs_%s_%s"):format(ref.name, fastbuild.projectPlatform(cfg)))
                 end
             end
         end
@@ -1537,7 +1598,7 @@
         local outdir = path.translate(cfg.buildtarget.directory .. "/")
         local outname = cfg.buildtarget.name
 
-        local dep_libs = m.projectDependencies(prj, cfg)
+        local dep_libs = m.projectDependencyTargets(prj, cfg)
         local subsystem = cfg.kind == p.CONSOLEAPP and "CONSOLE" or "WINDOWS"
 
         p.x("Executable('%s')", fastbuild.projectTargetname(prj, cfg))
@@ -1545,12 +1606,19 @@
         p.x("Using( .config_%s_%s )", prj.name, fastbuild.projectPlatform(cfg))
         p.x(".LinkerOptions + ' /SUBSYSTEM:%s'", subsystem)
         p.push()
-        for _, lib in pairs(dep_libs) do
-            p.x('+ \' "%s"\'', lib)
-        end
+        -- for _, lib in pairs(dep_libs) do
+        --     p.x('+ \' "%s"\'', lib)
+        -- end
         p.pop()
 
-        p.x(".Libraries = .libs_%s_%s", prj.name, fastbuild.projectPlatform(cfg))
+        p.push(".Libraries = .libs_%s_%s", prj.name, fastbuild.projectPlatform(cfg))
+        for _, inputs_struct in pairs(m.projectDependencyInputs(prj, cfg)) do
+            p.x("+ %s", inputs_struct)
+        end
+        for _, lib in pairs(dep_libs) do
+            p.x('+ \'%s\'', lib)
+        end
+        p.pop()
 
         f.struct_pair("LinkerOutput", "%s%s", outdir, outname)
         p.pop("}")
@@ -1562,7 +1630,7 @@
         local outdir = path.translate(cfg.buildtarget.directory .. "/")
         local outname = cfg.buildtarget.name
 
-        local dep_libs = m.projectDependencies(prj, cfg)
+        local dep_libs = m.projectDependencyTargets(prj, cfg)
 
         p.x("DLL('%s')", fastbuild.projectTargetname(prj, cfg))
         p.push("{")
@@ -1571,14 +1639,21 @@
         p.push()
         p.x("+ ' /SUBSYSTEM:WINDOWS'")
         p.x("+ ' /IMPLIB:\"%s\"'", cfg.linktarget.abspath)
+        -- for _, lib in pairs(dep_libs) do
+        --     p.x('+ \' "%s"\'', lib)
+        -- end
+        p.pop()
+
+        p.push(".Libraries = .libs_%s_%s", prj.name, fastbuild.projectPlatform(cfg))
+        for _, inputs_struct in pairs(m.projectDependencyInputs(prj, cfg)) do
+            p.x("+ %s", inputs_struct)
+        end
         for _, lib in pairs(dep_libs) do
-            p.x('+ \' "%s"\'', lib)
+            p.x('+ \'%s\'', lib)
         end
         p.pop()
 
-        p.x(".Libraries = .libs_%s_%s", prj.name, fastbuild.projectPlatform(cfg))
-
-
+        p.x(".LinkerLinkObjects = %s", tostring(m.projectLinkDependencyInputs(prj, cfg) == true))
         f.struct_pair("LinkerOutput", "%s%s", outdir, outname)
         p.pop("}")
         p.w()

@@ -1767,6 +1767,7 @@
     end
 
     function m.projectVStudioEnd(prj)
+        p.x(".PlatformToolset = %s", fbuild.fmap.quote(fbuild.vstudioProjectToolset(prj)))
         p.pop("}")
     end
 

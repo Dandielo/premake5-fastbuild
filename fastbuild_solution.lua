@@ -245,7 +245,7 @@
             emitValue("ProjectBuildCommand", "cd \"$(SolutionDir)\" &amp; fbuild -config %s.wks.bff -ide -monitor -dist -cache all-$(Platform)-$(Configuration)", fbuild.fmap.quote, wks.filename),
             emitValue("ProjectRebuildCommand", "cd \"$(SolutionDir)\" &amp; fbuild -config %s.wks.bff -ide -monitor -dist -cache -clean all-$(Platform)-$(Configuration)", fbuild.fmap.quote, wks.filename),
             emitValue("ProjectCleanCommand", "cd \"$(SolutionDir)\" &amp; fbuild -config %s.wks.bff -ide -monitor -dist -cache -clean", fbuild.fmap.quote, wks.filename),
-            emitValue("PlatformToolset", "v140", fbuild.fmap.quote)
+            emitValue("PlatformToolset", fbuild.vstudioProjectToolset(wks), fbuild.fmap.quote)
         })
     end
 
@@ -264,7 +264,7 @@
             emitValue("ProjectOutput", "..\\build\\fastbuild\\Rebuild.vcxproj", fbuild.fmap.quote),
             emitValue("ProjectConfigs", ".SolutionConfigs"),
             emitValue("ProjectBuildCommand", "cd \"$(SolutionDir)\" &amp; fbuild -config %s.wks.bff %s-sln", fbuild.fmap.quote, wks.filename, wks.name),
-            emitValue("PlatformToolset", "v140", fbuild.fmap.quote)
+            emitValue("PlatformToolset", fbuild.vstudioProjectToolset(wks), fbuild.fmap.quote)
         })
     end
 

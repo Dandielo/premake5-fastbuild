@@ -225,6 +225,7 @@
         return {
             m.solutionOutputLocation,
             m.solutionBuildProject,
+            m.solutionFolders,
             m.solutionProjects,
             m.solutionDependencies,
         }
@@ -281,6 +282,7 @@
         m.emitSolutionConfigs(wks)
         m.emitAllProject(wks)
         m.emitRebuildProject(wks)
+        m.emitSolutionProjectFolders(wks)
         fbuild.emitFunction("VSSolution", fbuild._targetName(wks, nil, "sln"), m.elements.vstudio, nil, wks)
     end
 
@@ -329,6 +331,15 @@
                 return fbuild.fmap.quote(target_name)
             end
         end)
+    end
+
+
+
+---
+-- Emits the solution folders setting for the given solution
+---
+    function m.solutionFolders(wks)
+        fbuild.emitStructValue("SolutionFolders", fbuild.structName(wks, nil, "SolutionFolders"), false, fbuild.fmap.variable)
     end
 
 
@@ -395,25 +406,54 @@
         })
     end
 
+    function m.emitSolutionProjectFolders(wks)
+        for _, group in ipairs(dependency_resolver.allgroups(wks)) do
 
+            if #group.projects > 0 then
 
+                local struct_name = ("%s_SolutionFolder"):format(group.name:gsub("/", "_"))
 
+                fbuild.emitStruct(struct_name, {
+                    fbuild.call(fbuild.emitStructValue, "Path", group.name, false, fbuild.fmap.quote),
+                    fbuild.call(fbuild.emitList, "Projects", { fbuild.emitListItems }, nil, group.projects, function(prj)
 
+                        if fbuild.checkCompilers(prj) then
 
+                            return fbuild.fmap.quote(fbuild._targetName(prj.name, nil, "vcxproj"))
 
+                        end
 
+                    end)
+                })
 
-    -- function m.solutionProjectFolders(wks)
-    --     -- p.x(".%s_SolutionFolders = { }", wks.name)
-    --     -- wks.fbuild.projects:for_each_group(function(group, prjs)
-    --     --     p.push(".%sFolder_%s = [", wks.name, group)
-    --     --     p.x(".Path = '%s'", group)
-    --     --     p.push(".Projects = {")
-    --     --     for _, prj in pairs(prjs) do
-    --     --         p.x("'%s_vcxproj', ", prj)
-    --     --     end
-    --     --     p.pop("}")
-    --     --     p.pop("]")
-    --     --     p.x(".%s_SolutionFolders + .%sFolder_%s", wks.name, wks.name, group)
-    --     -- end)
-    -- end
+            end
+
+        end
+
+        -- Emit solution folder for FBuild special generated projects
+        fbuild.emitStruct(fbuild.structName(wks, nil, "FBuildSolutionFolder"), {
+            fbuild.call(fbuild.emitStructValue, "Path", "_fbuild", false, fbuild.fmap.quote),
+            fbuild.call(fbuild.emitList, "Projects", { fbuild.emitListItems }, nil, { "All", "Rebuild" }, function(name)
+
+                return fbuild.fmap.quote(fbuild._targetName(name, nil, "vcxproj"))
+
+            end)
+        })
+
+        -- Emit the SolutionFolders list
+        local inner = {
+            fbuild.emitListItems,
+            fbuild.call(p.x, ".%s", fbuild.structName(wks, nil, "FBuildSolutionFolder"))
+        }
+
+        fbuild.emitList(fbuild.structName(wks, nil, "SolutionFolders"), inner, nil, dependency_resolver.allgroups(wks), function(group)
+
+            if #group.projects > 0 then
+
+                local struct_name = (".%s_SolutionFolder"):format(group.name:gsub("/", "_"))
+                return struct_name
+
+            end
+
+        end)
+    end

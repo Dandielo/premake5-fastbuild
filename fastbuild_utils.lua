@@ -399,6 +399,10 @@
         return ("'%s'"):format(tostring(value))
     end
 
+    function fmap.variable(value)
+        return (".%s"):format(tostring(value))
+    end
+
     function fmap.list(values)
         return ("{ %s }"):format(table.concat(values, ", "))
     end

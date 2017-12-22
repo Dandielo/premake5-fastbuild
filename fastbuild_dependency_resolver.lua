@@ -1,7 +1,7 @@
 --
 -- actions/fastbuild/fastbuild.lua
 -- Extend the existing exporters with support for FASTBuild
--- Copyright (c) 2017-2017 Daniel Penkała 
+-- Copyright (c) 2017-2017 Daniel Penkała
 --
 
     local p = premake
@@ -13,30 +13,44 @@
 
     local m = p.fastbuild.dependency_resolver
     m.resolved = { }
+    m.groups = { }
 
 ---
--- Calls the function for each project in the workspace in dependency relative order 
+-- Calls the function for each project in the workspace in dependency relative order
 ---
-    
-    
+
+
     function m.eachproject(wks, func)
-        for _, prj in pairs(m.allprojects(wks)) do 
+        for _, prj in pairs(m.allprojects(wks)) do
             func(prj)
+        end
+    end
+
+    function m.eachgroup(wks, func)
+        for _, prj in pairs(m.allgroups(wks)) do
+            func(name, group)
         end
     end
 
 
 ---
--- Returns a list of projets in dependency relative order 
+-- Returns a list of projets in dependency relative order
 ---
     function m.allprojects(wks)
-        if not m.resolved[wks.name] then 
+        if not m.resolved[wks.name] then
             m.resolved[wks.name] = m.projectsResolved(wks)
         end
 
         return m.resolved[wks.name]
     end
 
+    function m.allgroups(wks)
+        if not m.groups[wks.name] then
+            m.groups[wks.name] = m.groupsResolved(wks)
+        end
+
+        return m.groups[wks.name]
+    end
 
 
 ---
@@ -46,7 +60,7 @@
         local helper = { }
         local result_list = { }
 
-        for _, prj in pairs(list) do 
+        for _, prj in pairs(list) do
             if not helper[prj] then
                 helper[prj] = true
                 table.insert(result_list, prj)
@@ -70,7 +84,7 @@
     end
 
 ---
--- Returns a list of projects in dependency relative order 
+-- Returns a list of projects in dependency relative order
 ---
     function m.projectsResolved(wks)
         local projects_list = { }
@@ -78,16 +92,72 @@
         local tr = workspace.grouptree(wks)
 
         -- Traverse the tree and append each project and its dependencies to a list. (dependiencies go first)
-        tree.traverse(tr, { 
+        tree.traverse(tr, {
             onleaf = function(node)
                 local proj = node.project
                 local dependencies = project.getdependencies(proj, 'all')
 
                 -- Add each dependency to the list
                 add_project_to_list(projects_list, proj)
-            end
+            end,
         })
 
         -- Remove duplicates
         return remove_duplicates(projects_list)
+    end
+
+---
+-- Returns a list of projects in dependency relative order
+---
+    function m.groupsResolved(wks)
+        local solution_groups = { }
+        local groups_stack = { "" }
+        local current_group_at = 1
+
+        local function current_group()
+            return groups_stack[current_group_at]
+        end
+
+        -- Default group
+        solution_groups[current_group()] = { }
+
+        local tr = workspace.grouptree(wks)
+
+        -- Traverse the tree and append each project and its dependencies to a list. (dependiencies go first)
+        tree.traverse(tr, {
+            onleaf = function(node)
+                table.insert(solution_groups[current_group()], node.project)
+            end,
+            onbranchenter = function(node, depth)
+                local group_name = current_group() .. "/" .. node.name
+                solution_groups[group_name] = solution_groups[group_name] or { }
+
+                current_group_at = current_group_at + 1
+                groups_stack[current_group_at] = group_name
+            end,
+            onbranchexit = function(node, depth)
+                current_group_at = current_group_at - 1
+            end
+        })
+
+        -- For each group
+        local result_groups = { }
+        for name, group in pairs(solution_groups) do
+            if name ~= "" then
+                name = name:sub(2)
+            end
+
+            table.insert(result_groups, {
+                name = name,
+                projects = group
+            })
+        end
+
+        -- Sort the table
+        table.sort(result_groups, function(g1, g2)
+            return g1.name < g2.name
+        end)
+
+        -- Remove duplicates
+        return result_groups
     end

@@ -1698,7 +1698,7 @@
 
             -- local out_dir =
             p.x(".OutputDirectory = '%s'", path.translate(cfg.buildtarget.directory))
-            p.x(".LocalDebuggerWorkingDirectory = '^$(OutDir)'")
+            p.x(".LocalDebuggerWorkingDirectory = '%s'", path.translate(cfg.debugdir))
             p.push(".AdditionalOptions = ''")
             p.callArray({ m.cppDialect }, cfg)
             p.pop()

@@ -108,6 +108,7 @@
             m.clCompileAdditionalIncludeDirectories,
             m.exceptionHandling,
             m.runtimeTypeInfo,
+            m.disableWarnings,
             m.additionalCompileOptions,
             m.precompiledHeader
         }
@@ -1836,6 +1837,12 @@
             m.element("/GR-", "Runtime Type Information: Disabled")
         elseif cfg.rtti == p.ON then
             m.element("/GR", "Runtime Type Information: Enabled")
+        end
+    end
+
+    function m.disableWarnings(cfg)
+        for _, warning in ipairs(cfg.disableWarnings or {}) do 
+            m.element("/wd" .. warning, "Disabled warning: C%i", warning)
         end
     end
 

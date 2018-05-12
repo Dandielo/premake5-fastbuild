@@ -63,7 +63,7 @@
         local configs_have_compilers = true
 
         for cfg in project.eachconfig(prj) do
-            configs_have_compilers = configs_have_compilers and wks.compilers[fbuild.targetCompilerPlatform(cfg)] ~= nil
+            configs_have_compilers = configs_have_compilers and wks.compilers[fbuild.config_name(cfg)] ~= nil
         end
 
         return configs_have_compilers
@@ -149,7 +149,7 @@
         f.section("Configurations")
         for cfg in project.eachconfig(prj) do
             f.struct_begin("config_%s_%s", prj.name, fastbuild.projectPlatform(cfg))
-            p.x("Using( .%s )", fbuild.targetCompilerPlatformStruct(cfg))
+            p.x("Using( .%s )", fbuild.compiler_struct(cfg))
             p.w()
 
             p.x(".CompilerOptions + ''")

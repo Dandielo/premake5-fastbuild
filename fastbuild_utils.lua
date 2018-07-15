@@ -21,6 +21,22 @@
 ---
 -- Define the FASTBuild utility functions
 ---
+
+    function utils.traverseProjects(treeForTraverse)
+        local projects = {}
+        p.tree.traverse(treeForTraverse, {
+            onleaf = function(node)
+                table.insert(projects, node.project.name)
+            end
+        })
+
+        return projects
+    end
+
+    function utils.removeWhiteSpaces(string)
+        return string:gsub("%s+", "")
+    end
+
     function utils.separator()
         p.x(utils.constants.section.separator)
     end
@@ -169,7 +185,7 @@
 
     function fbuild.targetName2(obj, cfg, join)
         local name = obj.name or obj
-        return table.concat({ name, cfg.platform, cfg.buildcfg }, iif(join, join, "-"))
+        return table.concat({ name, cfg.platform, utils.removeWhiteSpaces(cfg.buildcfg) }, iif(join, join, "-"))
     end
 
 

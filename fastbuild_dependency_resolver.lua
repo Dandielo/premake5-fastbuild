@@ -34,7 +34,7 @@
 
 
 ---
--- Returns a list of projets in dependency relative order
+-- Returns a list of projects in dependency relative order
 ---
     function m.allprojects(wks)
         if not m.resolved[wks.name] then

@@ -1,7 +1,7 @@
 --
 -- actions/fastbuild/fastbuild_platforms.lua
 -- Extend the existing exporters with support for FASTBuild
--- Copyright (c) 2017-2017 Daniel Penkała 
+-- Copyright (c) 2017-2017 Daniel Penkała
 --
 
     local p = premake

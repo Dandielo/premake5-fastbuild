@@ -1,12 +1,13 @@
 --
 -- actions/fastbuild/fastbuild.lua
 -- Extend the existing exporters with support for FASTBuild
--- Copyright (c) 2017-2017 Daniel Penkała 
+-- Copyright (c) 2017-2017 Daniel Penkała
 --
 
     local p = premake
     local project = p.project
     local fastbuild = p.fastbuild
+    local f = fastbuild.utils
 
 ---
 -- Define the FASTBuild build functions
@@ -53,7 +54,7 @@
             SolutionDir = "$WorkspaceLocation$"
         }
 
-        if type(value) ~= "string" then 
+        if type(value) ~= "string" then
             return value
         end
 
@@ -61,7 +62,7 @@
             return vs_mappings[match] or ("$(%s)"):format(match)
         end)
         value = value:gsub("%$(%(.-%))",  "^$%1")
-        
+
         return value
     end
 
@@ -104,7 +105,7 @@
 
     function fastbuild.projectLocation(prj)
         local prj = prj.project or prj
-        local wks = prj.workspace 
+        local wks = prj.workspace
 
         local project_script_location = path.getdirectory(prj.script)
         local workspace_script_location = path.getdirectory(wks.script)
@@ -186,6 +187,7 @@
     function fastbuild.projectPlatform(cfg, join)
         if not join then join = "_" end
 
+        local buildConfigurationName = f.removeWhiteSpaces(cfg.buildcfg)
         local platform = cfg.platform
         if platform then
             local pltarch = fastbuild.archFromPlatform(cfg.platform) or platform
@@ -196,9 +198,9 @@
         end
 
         if platform then
-            return cfg.buildcfg .. join .. platform
+            return buildConfigurationName .. join .. platform
         else
-            return cfg.buildcfg
+            return buildConfigurationName
         end
     end
 
@@ -207,7 +209,7 @@
         return prj.name .. "-" .. platform
     end
 
-    function fastbuild.targetName(cfg, prefix, postfix, delim) 
+    function fastbuild.targetName(cfg, prefix, postfix, delim)
         if not delim then delim = "_" end
         local prj = cfg.project
         local values = table.unique({ prefix, prj.name, fastbuild.projectPlatform(cfg, delim), postfix })
@@ -341,6 +343,6 @@
             platform = fastbuild.solutionArch(cfg)
         end
 
-        return string.format("%s%s%s", cfg.buildcfg, join, platform)
+        return string.format("%s%s%s", f.removeWhiteSpaces(cfg.buildcfg), join, platform)
     end
 

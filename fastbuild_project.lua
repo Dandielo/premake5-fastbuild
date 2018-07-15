@@ -110,7 +110,10 @@
             m.runtimeTypeInfo,
             m.disableWarnings,
             m.additionalCompileOptions,
-            m.precompiledHeader
+            m.precompiledHeader,
+            m.forceIncludes,
+            m.characterSet,
+            m.mfcFlagDefines
         }
     end
 
@@ -188,6 +191,43 @@
         if cfg.flags.FatalCompileWarnings and cfg.warnings ~= p.OFF then
             m.element("/WX", "Warnings as errors")
         end
+    end
+
+    function m.forceIncludes(cfg)
+        local function processForceIncudes(includes)
+            if #includes > 0 then
+                for _, include in ipairs(includes or {}) do
+                    m.element('/FI"' .. include .. '"', 'Forcibly included: ' ..  include)
+                end
+            end
+        end
+        if #cfg.forceincludes > 0 then
+            processForceIncudes(cfg.forceincludes)
+        end
+    end
+
+    function m.characterSet(cfg)
+        local defines = cfg.defines
+
+        if cfg.characterset then
+            if string.lower(cfg.characterset) == 'unicode' then
+                defines = table.join(defines, "UNICODE")
+                defines = table.join(defines, "_UNICODE")
+            end
+        end
+
+        m.preprocessorDefinitions(cfg, defines, true)
+    end
+
+    function m.mfcFlagDefines(cfg)
+        local defines = cfg.defines
+        local flags = cfg.flags
+
+        if flags.MFC then
+            defines = table.join(defines, "_AFXDLL")
+        end
+
+        m.preprocessorDefinitions(cfg, defines, true)
     end
 
     function m.optimization(cfg)
@@ -623,10 +663,13 @@
             local fileCfgFunc = function(fcfg)
                 if fcfg then
                     return {
+                        m.excludedFromBuild,
                         m.clCompilePreprocessorDefinitions,
                         m.clCompileAdditionalIncludeDirectories,
                         m.generatedFile,
                         m.precompiledHeader,
+                        m.disableWarnings,
+                        m.forceIncludes,
                         m.unityBuildDisabled,
                         m.unityTag
                     }
@@ -829,11 +872,12 @@
 
             local function emitAdditionalIncludeDirs(cfg)
                 return function()
-                    p.x(".CompilerOptions = ''")
+                    p.x([[.CompilerOptions = '/fo"%%2"']])
                     m.clCompileAdditionalIncludeDirectories(cfg)
                     m.clCompilePreprocessorDefinitions(cfg)
                     p.push()
                     p.x("+ ' $ResCompilerOptions$'")
+                    p.x([[+ '  "%%1"']])
                     p.pop()
                 end
             end
@@ -1096,7 +1140,7 @@
 
                 -- In each configuration
                 for cfg in project.eachconfig(prj) do
-                    local buildcfg = cfg.buildcfg
+                    local buildcfg = f.removeWhiteSpaces(cfg.buildcfg)
                     local proc_cfg_files = processed_files[cfg.buildcfg] or { default = { } }
 
                     -- Get the file config
@@ -1108,7 +1152,7 @@
                             p.callArray(fileCfgFunc, fcfg)
                         end)
 
-                        -- We got some custom putput
+                        -- We got some custom output
                         if #contents > 0 then
                             proc_cfg_files[contents] = proc_cfg_files[contents] or { }
                             table.insert(proc_cfg_files[contents], file)
@@ -1121,7 +1165,6 @@
 
                     end
                 end
-
             end
 
 
@@ -1164,37 +1207,38 @@
             for cfg in project.eachconfig(prj) do
                 local fcfg = fileconfig.getconfig(file, cfg)
 
-                    local pch_files_ = file_map.pch[cfg] or { }
-                    local custom_files = file_map.custom[cfg] or { }
+                local pch_files_ = file_map.pch[cfg] or { }
+                local custom_files = file_map.custom[cfg] or { }
 
-                    local contents = p.capture(function ()
-                        p.pop()
-                        if not checkFunc or checkFunc(cfg, fcfg) then
-                            p.callArray(fileCfgFunc, fcfg)
-                        end
-                        p.push()
-                    end)
-
-                    if fcfg and fcfg.pchsource then
-                        assert(not pch_files[cfg])
-                        pch_files[cfg] = { { fcfg, contents } }
-                        is_default = false
-
-                    elseif #contents > 0 then
-                        contents = "\n" .. contents
-
-                        custom_files[contents] = custom_files[contents] or { }
-                        table.insert(custom_files[contents], fcfg)
-
-                        is_default = false
+                local contents = p.capture(function ()
+                    p.pop()
+                    if not checkFunc or checkFunc(cfg, fcfg) then
+                        p.callArray(fileCfgFunc, fcfg)
                     end
+                    p.push()
+                end)
 
-                    if is_default and checkFunc then
-                        is_default = checkFunc(cfg, fcfg)
-                    end
+                if fcfg and fcfg.pchsource then
+                    assert(not pch_files[cfg])
+                    pch_files[cfg] = { { fcfg, contents } }
+                    is_default = false
+                elseif fcfg and tag == 'ResourceCompile' then
+                    is_default = true
+                elseif fcfg or #contents > 0 then
+                    contents = "\n" .. contents
 
-                    file_map.pch[cfg] = pch_files_
-                    file_map.custom[cfg] = custom_files
+                    custom_files[contents] = custom_files[contents] or { }
+                    table.insert(custom_files[contents], fcfg)
+
+                    is_default = false
+                end
+
+                if is_default and checkFunc then
+                    is_default = checkFunc(cfg, fcfg)
+                end
+
+                file_map.pch[cfg] = pch_files_
+                file_map.custom[cfg] = custom_files
             end
             return is_default
         end
@@ -1234,7 +1278,7 @@
 
     function m.writeObjectList(prj, cfg, files, name, innerFuncs, endFuncs)
         local prjplatform = fastbuild.projectPlatform(cfg)
-        local name = ("objects_%s_%s_%s"):format(prj.name, prjplatform, name)
+        local name = ("objects_%s_%s_%s"):format(f.removeWhiteSpaces(prj.name), prjplatform, name)
 
         local data = {
             prj = prj,
@@ -1287,7 +1331,9 @@
 
     function m.objectListCompilerOptions(options)
         return function(data)
-            p.x(".CompilerOptions %s", options)
+            if string.len(f.removeWhiteSpaces(options)) >= 1 then
+                p.x(".CompilerOptions %s", options)
+            end
         end
     end
 
@@ -1699,7 +1745,9 @@
 
             -- local out_dir =
             p.x(".OutputDirectory = '%s'", path.translate(cfg.buildtarget.directory))
-            p.x(".LocalDebuggerWorkingDirectory = '%s'", path.translate(cfg.debugdir))
+            if cfg.debugdir then
+                p.x(".LocalDebuggerWorkingDirectory = '%s'", path.translate(cfg.debugdir))
+            end
             p.push(".AdditionalOptions = ''")
             p.callArray({ m.cppDialect }, cfg)
             p.pop()
@@ -1841,7 +1889,7 @@
     end
 
     function m.disableWarnings(cfg)
-        for _, warning in ipairs(cfg.disableWarnings or {}) do 
+        for _, warning in ipairs(cfg.disableWarnings or {}) do
             m.element("/wd" .. warning, "Disabled warning: C%i", warning)
         end
     end
@@ -1879,7 +1927,7 @@
 
                 for name, configs in pairs(mapping) do
                     local config = project.getconfig(prj, configs[1], platform)
-                    assert(config ~= nil, ("Invalid comfig mapping for '%s'"):format(name))
+                    assert(config ~= nil, ("Invalid config mapping for '%s'"):format(name))
 
                     fbuild.emitAlias(fbuild.projectTargetname(prj, { project = prj, buildcfg = name, platform = platform }), {
                         fbuild.fmap.quote(fbuild.projectTargetname(prj, config))

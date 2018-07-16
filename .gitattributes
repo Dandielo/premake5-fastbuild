@@ -1,0 +1,16 @@
+* text=auto
+
+# source code
+*.lua           text
+
+# git config
+.gitattributes  text
+.gitignore      text
+.gitconfig      text
+
+# misc config
+.editorconfig   text
+
+# Documentation
+*.md            text
+LICENSE         text

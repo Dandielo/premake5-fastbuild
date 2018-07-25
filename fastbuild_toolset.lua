@@ -209,13 +209,6 @@
         return prj.name .. "-" .. platform
     end
 
-    function fastbuild.targetName(cfg, prefix, postfix, delim)
-        if not delim then delim = "_" end
-        local prj = cfg.project
-        local values = table.unique({ prefix, prj.name, fastbuild.projectPlatform(cfg, delim), postfix })
-        return table.concat(values, delim)
-    end
-
 --
 -- Determine the appropriate Visual Studio platform identifier for a
 -- solution-level configuration.
@@ -345,4 +338,3 @@
 
         return string.format("%s%s%s", f.removeWhiteSpaces(cfg.buildcfg), join, platform)
     end
-

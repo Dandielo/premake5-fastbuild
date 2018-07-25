@@ -34,7 +34,7 @@
     end
 
     function utils.removeWhiteSpaces(string)
-        return string:gsub("%s+", "")
+        return (string:gsub("%s+", ""))
     end
 
     function utils.separator()
@@ -246,6 +246,13 @@
         return ((table.concat(filterempty{ "platform", config.system, config.architecture, config.toolset, suffix }, "_")):gsub("%-", "_"))
     end
 
+---
+-- Returns a target name for the given configuration
+---
+
+    function fbuild.targetName(cfg, prefix, suffix)
+        return iif(cfg.project and cfg.project ~= cfg, generatedNameConfig, generatedNameProject)("-", cfg, prefix, suffix)
+    end
 
 
 ---------------------------------------------------------------------------

@@ -21,6 +21,22 @@
 ---
 -- Define the FASTBuild utility functions
 ---
+
+    function utils.traverseProjects(treeForTraverse)
+        local projects = {}
+        p.tree.traverse(treeForTraverse, {
+            onleaf = function(node)
+                table.insert(projects, node.project.name)
+            end
+        })
+
+        return projects
+    end
+
+    function utils.removeWhiteSpaces(string)
+        return (string:gsub("%s+", ""))
+    end
+
     function utils.separator()
         p.x(utils.constants.section.separator)
     end
@@ -139,26 +155,6 @@
     end
 
 
---! Returns a name for the given configuration.
---! @note Uses the 'system', 'architecture' and 'toolset' values of the given configuration.
-    function fbuild.config_name(cfg)
-        local cfg = cfg.config or cfg
-        return table.concat(filterempty{ cfg.system, cfg.architecture, cfg.toolset }, "_")
-    end
-
---! Returns the compiler struct name for the given configuration.
-    function fbuild.compiler_struct(cfg)
-        local config_name = fbuild.config_name(cfg)
-        local wks = cfg.workspace or cfg
-
-        return wks.compilers[config_name]
-    end
-
---! Returns a struct name for the given configuration.
-    function fbuild.struct_name(cfg, prefix, suffix)
-        local config_name = fbuild.config_name(cfg)
-        return "." .. table.concat(filterempty{ prefix, config_name, suffix }, "_"):gsub("-", "_")
-    end
 
 ---
 -- Returns a generated name for project configuration scopes
@@ -167,7 +163,7 @@
     local function generatedNameConfig(separator, cfg, prefix, suffix)
         cfg = cfg.config or cfg
         local prj = cfg.project
-        return table.concat(filterempty{ prefix, prj.name, cfg.system, cfg.buildcfg, suffix }, separator)
+        return table.concat(filterempty{ prefix, prj.name, cfg.platform, cfg.buildcfg, suffix }, separator)
     end
 
 
@@ -189,7 +185,7 @@
 
     function fbuild.targetName2(obj, cfg, join)
         local name = obj.name or obj
-        return table.concat({ name, (cfg.platform or cfg.system), cfg.buildcfg }, iif(join, join, "-"))
+        return table.concat({ name, cfg.platform, utils.removeWhiteSpaces(cfg.buildcfg) }, iif(join, join, "-"))
     end
 
 
@@ -236,7 +232,7 @@
 
     function fbuild.targetCompilerPlatform(cfg)
         local config = cfg.config or cfg
-        return table.concat(filterempty{ config.system, config.architecture, (config.toolset and config.toolset:gsub("%-", "_")) }, "|")
+        return table.concat(filterempty{ config.system, config.architecture, (config.toolset:gsub("%-", "_")) }, "|")
     end
 
 
@@ -250,6 +246,13 @@
         return ((table.concat(filterempty{ "platform", config.system, config.architecture, config.toolset, suffix }, "_")):gsub("%-", "_"))
     end
 
+---
+-- Returns a target name for the given configuration
+---
+
+    function fbuild.targetName(cfg, prefix, suffix)
+        return iif(cfg.project and cfg.project ~= cfg, generatedNameConfig, generatedNameProject)("-", cfg, prefix, suffix)
+    end
 
 
 ---------------------------------------------------------------------------

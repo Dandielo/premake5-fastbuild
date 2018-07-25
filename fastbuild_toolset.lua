@@ -1,7 +1,7 @@
 --
 -- actions/fastbuild/fastbuild.lua
 -- Extend the existing exporters with support for FASTBuild
--- Copyright (c) 2017-2017 Daniel Penkała 
+-- Copyright (c) 2017-2017 Daniel Penkała
 --
 
     local p = premake
@@ -53,7 +53,7 @@
             SolutionDir = "$WorkspaceLocation$"
         }
 
-        if type(value) ~= "string" then 
+        if type(value) ~= "string" then
             return value
         end
 
@@ -61,7 +61,7 @@
             return vs_mappings[match] or ("$(%s)"):format(match)
         end)
         value = value:gsub("%$(%(.-%))",  "^$%1")
-        
+
         return value
     end
 
@@ -104,7 +104,7 @@
 
     function fastbuild.projectLocation(prj)
         local prj = prj.project or prj
-        local wks = prj.workspace 
+        local wks = prj.workspace
 
         local project_script_location = path.getdirectory(prj.script)
         local workspace_script_location = path.getdirectory(wks.script)
@@ -205,13 +205,6 @@
     function fastbuild.projectTargetname(prj, cfg)
         local platform = fastbuild.projectPlatform(cfg, "-")
         return prj.name .. "-" .. platform
-    end
-
-    function fastbuild.targetName(cfg, prefix, postfix, delim) 
-        if not delim then delim = "_" end
-        local prj = cfg.project
-        local values = table.unique({ prefix, prj.name, fastbuild.projectPlatform(cfg, delim), postfix })
-        return table.concat(values, delim)
     end
 
 --
@@ -343,4 +336,3 @@
 
         return string.format("%s%s%s", cfg.buildcfg, join, platform)
     end
-

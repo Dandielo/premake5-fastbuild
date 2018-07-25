@@ -63,7 +63,7 @@
         local configs_have_compilers = true
 
         for cfg in project.eachconfig(prj) do
-            configs_have_compilers = configs_have_compilers and wks.compilers[fbuild.config_name(cfg)] ~= nil
+            configs_have_compilers = configs_have_compilers and wks.compilers[fbuild.targetCompilerPlatform(cfg)] ~= nil
         end
 
         return configs_have_compilers
@@ -149,7 +149,7 @@
         f.section("Configurations")
         for cfg in project.eachconfig(prj) do
             f.struct_begin("config_%s_%s", prj.name, fastbuild.projectPlatform(cfg))
-            p.x("Using( .%s )", fbuild.compiler_struct(cfg))
+            p.x("Using( .%s )", fbuild.targetCompilerPlatformStruct(cfg))
             p.w()
 
             p.x(".CompilerOptions + ''")
@@ -1555,15 +1555,16 @@
         if #refs > 0 then
             for _, ref in ipairs(refs) do
 
-                local linktarget = project.getconfig(ref, cfg.buildcfg, cfg.platform or "Win32").buildtarget
+                local ref_cfg = project.getconfig(ref, cfg.buildcfg, cfg.platform or "Win32")
+                local linktarget = ref_cfg.buildtarget
 
                 if use_dep_inputs and ref.kind == p.SHAREDLIB then
 
-                    table.insert(libs, fastbuild.projectTargetname(ref, cfg)) -- path.translate(linktarget.directory .. "/") .. linktarget.name)
+                    table.insert(libs, fastbuild.targetName(ref_cfg)) -- path.translate(linktarget.directory .. "/") .. linktarget.name)
 
                 elseif not use_dep_inputs and (ref.kind ~= p.CONSOLEAPP and ref.kind ~= p.WINDOWEDAPP) then
 
-                    table.insert(libs, fastbuild.projectTargetname(ref, cfg)) -- path.translate(linktarget.directory .. "/") .. linktarget.name)
+                    table.insert(libs, fastbuild.targetName(ref_cfg)) -- path.translate(linktarget.directory .. "/") .. linktarget.name)
 
                 end
 
@@ -1602,7 +1603,7 @@
         local dep_libs = m.projectDependencyTargets(prj, cfg)
         local subsystem = cfg.kind == p.CONSOLEAPP and "CONSOLE" or "WINDOWS"
 
-        p.x("Executable('%s')", fastbuild.projectTargetname(prj, cfg))
+        p.x("Executable('%s')", fastbuild.targetName(cfg))
         p.push("{")
         p.x("Using( .config_%s_%s )", prj.name, fastbuild.projectPlatform(cfg))
         p.x(".LinkerOptions + ' /SUBSYSTEM:%s'", subsystem)
@@ -1618,7 +1619,7 @@
 
         f.struct_pair("LinkerOutput", "%s%s", outdir, outname)
         p.pop("}")
-        p.x(".AllTargets_%s + '%s'", fastbuild.projectPlatform(cfg), fastbuild.projectTargetname(prj, cfg))
+        p.x(".AllTargets_%s + '%s'", fastbuild.projectPlatform(cfg), fastbuild.targetName(cfg))
         p.w()
     end
 
@@ -1628,7 +1629,7 @@
 
         local dep_libs = m.projectDependencyTargets(prj, cfg)
 
-        p.x("DLL('%s')", fastbuild.projectTargetname(prj, cfg))
+        p.x("DLL('%s')", fastbuild.targetName(cfg))
         p.push("{")
         p.x("Using( .config_%s_%s )", prj.name, fastbuild.projectPlatform(cfg))
         p.x(".LinkerOptions + ' /DLL'")
@@ -1653,7 +1654,7 @@
     end
 
     function m.projectLibrary(prj, cfg)
-        p.x("Library('%s')", fastbuild.projectTargetname(prj, cfg))
+        p.x("Library('%s')", fastbuild.targetName(cfg))
         p.push("{")
         p.x("Using( .config_%s_%s )", prj.name, fastbuild.projectPlatform(cfg))
 
@@ -1694,7 +1695,7 @@
         p.x(".Platform = '%s'", cfg.platform or "Win32")
         p.x(".Config = '%s'", cfg.buildcfg)
         if not prj.fbuild.notarget then
-            p.x(".Target = '%s'", fbuild.projectTargetname(prj, cfg))
+            p.x(".Target = '%s'", fbuild.targetName(cfg))
             p.x(".Output = '%s'", path.translate(cfg.buildtarget.abspath))
 
             -- local out_dir =
@@ -1841,7 +1842,7 @@
     end
 
     function m.disableWarnings(cfg)
-        for _, warning in ipairs(cfg.disableWarnings or {}) do 
+        for _, warning in ipairs(cfg.disableWarnings or {}) do
             m.element("/wd" .. warning, "Disabled warning: C%i", warning)
         end
     end
@@ -1889,4 +1890,3 @@
             end
         end
     end
-

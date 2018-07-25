@@ -1,6 +1,8 @@
---! fastbuild_solution.lua
---! Extends premake5 with a FASTBuild exporter.
---! Copyright (c) 2017-2017 Daniel Penkała
+--
+-- actions/fastbuild/fastbuild.lua
+-- Extend the existing exporters with support for FASTBuild
+-- Copyright (c) 2017-2017 Daniel Penkała
+--
 
     local p = premake
     p.fastbuild.fbsln = { }
@@ -23,21 +25,26 @@
 
 
 
---! A namespace for call array elements.
---! @note An element entity of similar properties, grouped when generating the output file.
+---
+-- Add namespace for element definition lists for p.callArray()
+---
 
     m.elements = {}
 
 
---! Holds the workspace call array.
+
+--
+-- Return the list of sections contained in the solution.
+-- TODO: Get rid of this when the MonoDevelop module no longer needs it
+--
 
     m.elements.workspace = function(wks)
         return {
             -- General
             m.header,
-            m.compilers,
             m.globals,
             m.settings,
+            m.compilers,
             -- Projects
             m.allStructs,
             m.includeProjects,
@@ -47,14 +54,20 @@
     end
 
 
---! Generates a fastbuild 'workspace' file.
+
+---
+-- Define the FASTBuild solution generation function
+---
 
     function m.generate(wks)
         p.callArray(m.elements.workspace, wks)
     end
 
 
---! Generates the workspace file header.
+
+---
+-- Prints the workspace file header
+---
 
     function m.header(wks)
         f.section("FASTBuild Solution: %s", wks.name)
@@ -62,76 +75,45 @@
 
 
 
---! Iterates over all defined compilers and creates a best match table for all target combinations. 
---! @note More on this later.
+---
+-- Tries to find the defined compiler file definitions and includes them to the workspace
+---
 
     function m.compilers(wks)
         p.x("\n// Available compilers ")
         p.x("//-----")
 
         -- A list of all available compilers
-        local defined_compilers = { }
         local available_compilers = { }
-
-        -- Creates a table that can passed to the 'fbuild.config_name' function, from the given arguments
-        local function config_table(system, arch, toolset)
-            return { system = system, architecture = arch, toolset = toolset }
-        end
-
-        -- Creates a list of all confiuration permutations? for the specific compiler.
-        local function config_name_permutations(system, arch, toolset)
-            assert(system ~= nil)
-            local result = { system } 
-
-            if arch ~= nil then 
-                table.insert(result, fbuild.config_name(config_table(system, arch)))
-            end
-
-            if toolset ~= nil then 
-                table.insert(result, fbuild.config_name(config_table(system, nil, toolset)))
-            end
-
-            return result 
-        end
 
         -- Iterate over each compiler and save the architecture | system pair
         table.foreachi(wks.fbcompilers, function(compiler)
+            local name = compiler.name
+            local system = compiler.system
+            local architecture = compiler.architecture
+            local toolset = compiler.toolset
+            local path = compiler.path
 
-            local system = iif(compiler.system, compiler.system, os.target())
+            assert(name, "The given compiler does not have a name?")
+            assert(system, "Compiler %s does not have any target system defined!", name)
+            assert(architecture, "Compiler %s does not have any architecture defined!", name)
+            assert(toolset, "Compiler %s does not any toolset defined!", name)
+            assert(path, "Where can I find the given compiler? %s [%s]", name, platform)
 
-            -- Is somewhere a default architecture for each system defined? 
-            local architecture = iif(compiler.architecture, compiler.architecture, "x86_64")
+            -- Include the compiler file and save it in the list
+            fbuild.include(fbuild.path(wks, path))
 
-            -- Is somewhere a default toolset defined for each system?
-            local toolset = iif(compiler.toolset, compiler.toolset, nil)
-
-            -- Generates an 'include' statement
-            fbuild.include(fbuild.path(wks, compiler.path))
-
-            -- Returns the compiler defined configuration name
-            local config_name = fbuild.config_name(config_table(system, architecture, toolset)) 
-            compiler_struct = "platform_" .. config_name:gsub("-", "_")
-
-            defined_compilers[config_name] = compiler_struct
-            available_compilers[config_name] = compiler_struct
-
-            -- Use this compiler for matching but less specific configurations.
-            local config_name_perms = config_name_permutations(system, architecture, toolset)
-            table.foreachi(config_name_perms, function(config_name) 
-
-                if not available_compilers[config_name] then 
-                    available_compilers[config_name] = compiler_struct
-                end
-
-            end)
-
+            -- Save the system | architecture pair
+            local target_platform = system .. "|" .. architecture .. "|" .. toolset
+            assert(not available_compilers[target_platform], "Compiler for target platform %s already exists", target_platform)
+            available_compilers[target_platform] = true
         end)
 
         -- Check if we have a compiler for each workspace configuration (these are required to be present)
         for config in workspace.eachconfig(wks) do
-            local target_platform = fbuild.config_name(config)
+            local target_platform = fbuild.targetCompilerPlatform(config)
             local is_compiler_present = available_compilers[target_platform]
-            assert(is_compiler_present, ("No compiler found for target configuration %s!"):format(target_platform))
+            assert(is_compiler_present, ("No compiler found for target platform %s!"):format(target_platform))
         end
 
         -- Save the compiler list for later use
@@ -139,16 +121,15 @@
     end
 
 
---! Holds the 'globals' call array.
+---
+-- Write global values info the solution file
+---
 
     m.elements.globals = function(wks)
         return {
             fbuild.call(fbuild.emitStructValue, "WorkspaceLocation", wks.location, false, fbuild.fmap.quote)
         }
     end
-
-
---! Generates a section of values which should be available globally for all other generated files. 
 
     function m.globals(wks)
         p.x("\n// FASTBuild global values ")
@@ -157,16 +138,15 @@
     end
 
 
---! Holds the 'settings' call array.
+---
+-- Write settings info the solution file
+---
 
     m.elements.settings = function(wks)
         return {
             m.settingCachePath
         }
     end
-
-
---! Generates the 'settings' block.
 
     function m.settings(wks)
         p.x("\n// FASTBuild settings ")
@@ -176,8 +156,6 @@
         fbuild.emitScope(m.elements.settings)
     end
 
---! Generates the cache path setting if set.
-
     function m.settingCachePath(wks)
         local cache_path = _OPTIONS["fb-cache-path"]
         if cache_path and #cache_path > 0 then
@@ -186,14 +164,17 @@
     end
 
 
---! Generates all? possible combinations for the 'all' alliases
+
+---
+-- Emit 'All' structs which will hold all targets to be compiled when using an 'All' target
+---
 
     function m.allStructs(wks)
         p.x("\n// All structures (used to create 'All' alliases)")
         p.x("//-----")
 
         for cfg in p.workspace.eachconfig(wks) do
-            p.x("%s = { }", fbuild.struct_name(cfg, "all"))
+            p.x(".AllTargets_%s = { }", fbuild.solutionConfig(cfg))
         end
     end
 
@@ -219,13 +200,12 @@
     function m.allTargets(wks)
         p.x("\n// All targets (for default configurations) ")
         p.x("//-----")
-        p.x("// todo 'Alias' calls")
 
-        -- for cfg in workspace.eachconfig(wks) do
-        --     fbuild.emitFunction("Alias", fbuild.targetName2("all", cfg), {
-        --         fbuild.call(p.x, ".Targets = .AllTargets_%s", fbuild.struct_name(cfg))
-        --     })
-        -- end
+        for cfg in workspace.eachconfig(wks) do
+            fbuild.emitFunction("Alias", fbuild.targetName2("all", cfg), {
+                fbuild.call(p.x, ".Targets = .AllTargets_%s", fbuild.solutionConfig(cfg))
+            })
+        end
     end
 
 

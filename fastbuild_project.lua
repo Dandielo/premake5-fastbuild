@@ -1793,8 +1793,8 @@
 
     function m.projectVStudioBuildCommands(prj)
         p.x("")
-        p.x(".ProjectBuildCommand = 'cd \"^$(SolutionDir)\" &amp; fbuild -config %s.wks.bff -ide -monitor -dist -cache %s-^$(Configuration)-^$(Platform)'", prj.workspace.filename, prj.name)
-        p.x(".ProjectRebuildCommand = 'cd \"^$(SolutionDir)\" &amp; fbuild -config %s.wks.bff -ide -monitor -dist -cache -clean %s-^$(Configuration)-^$(Platform)'", prj.workspace.filename, prj.name)
+        p.x(".ProjectBuildCommand = 'cd \"^$(SolutionDir)\" &amp; fbuild -config %s.wks.bff -ide -monitor -dist -cache %s-^$(Platform)-^$(Configuration)'", prj.workspace.filename, prj.name)
+        p.x(".ProjectRebuildCommand = 'cd \"^$(SolutionDir)\" &amp; fbuild -config %s.wks.bff -ide -monitor -dist -cache -clean %s-^$(Platform)-^$(Configuration)'", prj.workspace.filename, prj.name)
         p.x(".ProjectCleanCommand = 'cd \"^$(SolutionDir)\" &amp; fbuild -config %s.wks.bff -ide -monitor -dist -cache -clean'", prj.workspace.filename)
     end
 

@@ -412,19 +412,22 @@
             if #group.projects > 0 then
 
                 local struct_name = ("%s_SolutionFolder"):format(group.name:gsub("/", "_"))
+                if group.name ~= "" then
 
-                fbuild.emitStruct(struct_name, {
-                    fbuild.call(fbuild.emitStructValue, "Path", group.name, false, fbuild.fmap.quote),
-                    fbuild.call(fbuild.emitList, "Projects", { fbuild.emitListItems }, nil, group.projects, function(prj)
+                    fbuild.emitStruct(struct_name, {
+                        fbuild.call(fbuild.emitStructValue, "Path", group.name, false, fbuild.fmap.quote),
+                        fbuild.call(fbuild.emitList, "Projects", { fbuild.emitListItems }, nil, group.projects, function(prj)
 
-                        if fbuild.checkCompilers(prj) then
+                            if fbuild.checkCompilers(prj) then
 
-                            return fbuild.fmap.quote(fbuild._targetName(prj.name, nil, "vcxproj"))
+                                return fbuild.fmap.quote(fbuild._targetName(prj.name, nil, "vcxproj"))
 
-                        end
+                            end
 
-                    end)
-                })
+                        end)
+                    })
+
+                end
 
             end
 
@@ -448,7 +451,7 @@
 
         fbuild.emitList(fbuild.structName(wks, nil, "SolutionFolders"), inner, nil, dependency_resolver.allgroups(wks), function(group)
 
-            if #group.projects > 0 then
+            if #group.projects > 0 and group.name ~= "" then
 
                 local struct_name = (".%s_SolutionFolder"):format(group.name:gsub("/", "_"))
                 return struct_name
